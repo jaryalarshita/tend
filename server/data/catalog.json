@@ -1,0 +1,57 @@
+[
+  { "id": "gb-01", "name": "Kraft Gift Box, Small (pack of 25)", "supplier": "Harbor Lane Packaging", "price": 18.5, "stock": 120, "deliveryDays": 4, "category": "gift-boxes" },
+  { "id": "gb-02", "name": "Kraft Gift Box, Medium (pack of 25)", "supplier": "Harbor Lane Packaging", "price": 26.0, "stock": 85, "deliveryDays": 4, "category": "gift-boxes" },
+  { "id": "gb-03", "name": "Budget White Gift Box, Medium (pack of 50)", "supplier": "Parcel Peak Wholesale", "price": 24.0, "stock": 300, "deliveryDays": 16, "category": "gift-boxes" },
+  { "id": "gb-04", "name": "Magnetic Lid Gift Box, Black (pack of 12)", "supplier": "Juniper Street Goods", "price": 62.0, "stock": 40, "deliveryDays": 3, "category": "gift-boxes" },
+  { "id": "gb-05", "name": "Holiday Red Gift Box Assortment (pack of 30)", "supplier": "Brightleaf Supply Co", "price": 39.0, "stock": 18, "deliveryDays": 6, "category": "gift-boxes" },
+  { "id": "gb-06", "name": "Luxury Rigid Gift Box with Ribbon (pack of 20)", "supplier": "Juniper Street Goods", "price": 148.0, "stock": 25, "deliveryDays": 5, "category": "gift-boxes" },
+
+  { "id": "fl-01", "name": "Warm White Fairy Lights, 5 m (pack of 10)", "supplier": "Lumen & Wick Trading", "price": 32.0, "stock": 90, "deliveryDays": 5, "category": "fairy-lights" },
+  { "id": "fl-02", "name": "Warm White Fairy Lights, 10 m (pack of 10)", "supplier": "Lumen & Wick Trading", "price": 54.0, "stock": 60, "deliveryDays": 5, "category": "fairy-lights" },
+  { "id": "fl-03", "name": "Battery Copper Wire Lights, 3 m (pack of 20)", "supplier": "Brightleaf Supply Co", "price": 38.0, "stock": 150, "deliveryDays": 7, "category": "fairy-lights" },
+  { "id": "fl-04", "name": "Bulk Economy String Lights, 5 m (pack of 40)", "supplier": "Parcel Peak Wholesale", "price": 58.0, "stock": 500, "deliveryDays": 21, "category": "fairy-lights" },
+  { "id": "fl-05", "name": "Multicolor Holiday Lights, 10 m (pack of 6)", "supplier": "Juniper Street Goods", "price": 41.0, "stock": 12, "deliveryDays": 2, "category": "fairy-lights" },
+  { "id": "fl-06", "name": "Premium Globe Festoon Lights, 15 m (pack of 5)", "supplier": "Lumen & Wick Trading", "price": 165.0, "stock": 30, "deliveryDays": 6, "category": "fairy-lights" },
+
+  { "id": "pt-01", "name": "Clear Packing Tape, 48 mm x 50 m (pack of 6)", "supplier": "Mapleton Trade Supply", "price": 11.5, "stock": 400, "deliveryDays": 3, "category": "packing-tape" },
+  { "id": "pt-02", "name": "Clear Packing Tape, 48 mm x 100 m (pack of 12)", "supplier": "Mapleton Trade Supply", "price": 34.0, "stock": 220, "deliveryDays": 3, "category": "packing-tape" },
+  { "id": "pt-03", "name": "Brown Kraft Paper Tape, 48 mm x 50 m (pack of 6)", "supplier": "Harbor Lane Packaging", "price": 19.0, "stock": 140, "deliveryDays": 5, "category": "packing-tape" },
+  { "id": "pt-04", "name": "Economy Clear Tape, 48 mm x 50 m (pack of 36)", "supplier": "Parcel Peak Wholesale", "price": 39.0, "stock": 800, "deliveryDays": 15, "category": "packing-tape" },
+  { "id": "pt-05", "name": "Printed Fragile Tape, 48 mm x 66 m (pack of 6)", "supplier": "Mapleton Trade Supply", "price": 16.5, "stock": 95, "deliveryDays": 4, "category": "packing-tape" },
+  { "id": "pt-06", "name": "Holiday Print Packing Tape, 48 mm x 50 m (pack of 6)", "supplier": "Brightleaf Supply Co", "price": 24.0, "stock": 10, "deliveryDays": 8, "category": "packing-tape" },
+
+  { "id": "gw-01", "name": "Kraft Wrapping Paper Roll, 30 m", "supplier": "Harbor Lane Packaging", "price": 14.0, "stock": 75, "deliveryDays": 4, "category": "gift-wrap" },
+  { "id": "gw-02", "name": "Holiday Print Wrapping Paper, 20 m (pack of 4)", "supplier": "Brightleaf Supply Co", "price": 28.0, "stock": 110, "deliveryDays": 6, "category": "gift-wrap" },
+  { "id": "gw-03", "name": "Satin Ribbon, Red, 25 mm x 50 m (pack of 5)", "supplier": "Juniper Street Goods", "price": 22.5, "stock": 65, "deliveryDays": 3, "category": "gift-wrap" },
+  { "id": "gw-04", "name": "Bulk Tissue Paper, Assorted (pack of 480 sheets)", "supplier": "Parcel Peak Wholesale", "price": 26.0, "stock": 260, "deliveryDays": 18, "category": "gift-wrap" },
+  { "id": "gw-05", "name": "Metallic Gift Bows (pack of 100)", "supplier": "Brightleaf Supply Co", "price": 17.5, "stock": 8, "deliveryDays": 5, "category": "gift-wrap" },
+  { "id": "gw-06", "name": "Natural Jute Twine, 100 m (pack of 6)", "supplier": "Mapleton Trade Supply", "price": 12.0, "stock": 130, "deliveryDays": 4, "category": "gift-wrap" },
+
+  { "id": "sm-01", "name": "Poly Mailers, 25 x 35 cm (pack of 100)", "supplier": "Mapleton Trade Supply", "price": 15.0, "stock": 350, "deliveryDays": 3, "category": "shipping-supplies" },
+  { "id": "sm-02", "name": "Padded Bubble Mailers, 22 x 28 cm (pack of 50)", "supplier": "Mapleton Trade Supply", "price": 21.0, "stock": 210, "deliveryDays": 3, "category": "shipping-supplies" },
+  { "id": "sm-03", "name": "Corrugated Shipping Box, 30 cm cube (pack of 25)", "supplier": "Harbor Lane Packaging", "price": 36.0, "stock": 100, "deliveryDays": 5, "category": "shipping-supplies" },
+  { "id": "sm-04", "name": "Bubble Wrap Roll, 30 cm x 50 m", "supplier": "Harbor Lane Packaging", "price": 18.0, "stock": 70, "deliveryDays": 4, "category": "shipping-supplies" },
+  { "id": "sm-05", "name": "Economy Shipping Box, 25 cm cube (pack of 100)", "supplier": "Parcel Peak Wholesale", "price": 72.0, "stock": 600, "deliveryDays": 20, "category": "shipping-supplies" },
+  { "id": "sm-06", "name": "Thermal Shipping Labels, 4 x 6 in (roll of 500)", "supplier": "Mapleton Trade Supply", "price": 13.5, "stock": 180, "deliveryDays": 2, "category": "shipping-supplies" },
+
+  { "id": "sd-01", "name": "Pine Garland, 2 m (pack of 6)", "supplier": "Brightleaf Supply Co", "price": 45.0, "stock": 55, "deliveryDays": 6, "category": "seasonal-decor" },
+  { "id": "sd-02", "name": "Shatterproof Ornaments, Red and Gold (pack of 48)", "supplier": "Juniper Street Goods", "price": 33.0, "stock": 95, "deliveryDays": 4, "category": "seasonal-decor" },
+  { "id": "sd-03", "name": "Tabletop Pine Tree, 60 cm (pack of 4)", "supplier": "Brightleaf Supply Co", "price": 68.0, "stock": 20, "deliveryDays": 7, "category": "seasonal-decor" },
+  { "id": "sd-04", "name": "Bulk Holiday Ornament Mix (pack of 200)", "supplier": "Parcel Peak Wholesale", "price": 79.0, "stock": 240, "deliveryDays": 19, "category": "seasonal-decor" },
+  { "id": "sd-05", "name": "Window Snowflake Clings (pack of 60)", "supplier": "Juniper Street Goods", "price": 14.5, "stock": 6, "deliveryDays": 3, "category": "seasonal-decor" },
+  { "id": "sd-06", "name": "Handmade Wreath, 50 cm (pack of 4)", "supplier": "Lumen & Wick Trading", "price": 132.0, "stock": 15, "deliveryDays": 8, "category": "seasonal-decor" },
+
+  { "id": "cn-01", "name": "Soy Votive Candles, Cinnamon (pack of 24)", "supplier": "Lumen & Wick Trading", "price": 42.0, "stock": 70, "deliveryDays": 5, "category": "candles" },
+  { "id": "cn-02", "name": "Soy Jar Candles, Vanilla, 200 g (pack of 12)", "supplier": "Lumen & Wick Trading", "price": 74.0, "stock": 45, "deliveryDays": 5, "category": "candles" },
+  { "id": "cn-03", "name": "Unscented Tea Lights (pack of 200)", "supplier": "Mapleton Trade Supply", "price": 19.5, "stock": 320, "deliveryDays": 3, "category": "candles" },
+  { "id": "cn-04", "name": "Economy Scented Candles, Mixed (pack of 48)", "supplier": "Parcel Peak Wholesale", "price": 64.0, "stock": 280, "deliveryDays": 17, "category": "candles" },
+  { "id": "cn-05", "name": "Glass Candle Holders (pack of 24)", "supplier": "Juniper Street Goods", "price": 37.0, "stock": 14, "deliveryDays": 4, "category": "candles" },
+  { "id": "cn-06", "name": "Beeswax Taper Candles, Boxed Set (pack of 20)", "supplier": "Lumen & Wick Trading", "price": 118.0, "stock": 22, "deliveryDays": 7, "category": "candles" },
+
+  { "id": "rd-01", "name": "Thank You Cards, Kraft (pack of 100)", "supplier": "Juniper Street Goods", "price": 16.0, "stock": 190, "deliveryDays": 3, "category": "retail-supplies" },
+  { "id": "rd-02", "name": "Price Tags with String (pack of 500)", "supplier": "Mapleton Trade Supply", "price": 12.5, "stock": 260, "deliveryDays": 3, "category": "retail-supplies" },
+  { "id": "rd-03", "name": "Kraft Shopping Bags with Handles, Medium (pack of 100)", "supplier": "Harbor Lane Packaging", "price": 44.0, "stock": 130, "deliveryDays": 5, "category": "retail-supplies" },
+  { "id": "rd-04", "name": "Bulk Plain Shopping Bags, Medium (pack of 500)", "supplier": "Parcel Peak Wholesale", "price": 89.0, "stock": 700, "deliveryDays": 22, "category": "retail-supplies" },
+  { "id": "rd-05", "name": "Countertop Display Stand, Wood (pack of 2)", "supplier": "Juniper Street Goods", "price": 58.0, "stock": 11, "deliveryDays": 6, "category": "retail-supplies" },
+  { "id": "rd-06", "name": "Chalkboard Shelf Signs (pack of 24)", "supplier": "Brightleaf Supply Co", "price": 21.5, "stock": 85, "deliveryDays": 4, "category": "retail-supplies" }
+]
