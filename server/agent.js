@@ -3,18 +3,11 @@
 // the catalog. The one exception is a partial refund or dispute offer, which Gemini may
 // size, but which is capped at what PayPal says was paid and shown to the owner first.
 import { GoogleGenAI } from '@google/genai';
+import { ACTIONS, priceAction } from '../shared/actions.js';
 
 // gemini-3.8-flash is listed but timed out on every call (Nov 2026), so 3.5 Flash it is.
 const DEFAULT_MODEL = 'gemini-3.5-flash';
 const REQUEST_TIMEOUT_MS = 45_000;
-
-// The actions Tend can carry out (or deliberately not carry out) for each kind of item.
-export const ACTIONS = {
-  overdue_invoice: ['send_reminder', 'hold'],
-  refund_request: ['full_refund', 'partial_refund', 'decline', 'review'],
-  dispute: ['send_message', 'make_offer', 'accept_claim', 'review'],
-  low_stock: ['reorder', 'skip'],
-};
 
 const SHOP_POLICY = `You are Tend, the back-office assistant for Little Lantern Gifts, a small holiday gift shop that sells on PayPal.
 For each item, propose exactly one action. The owner approves or rejects every proposal before anything happens, so be decisive and explain why in one or two plain sentences.
@@ -68,9 +61,6 @@ const getClient = () => {
   return client;
 };
 
-const toCents = (value) => Math.round(Number(value) * 100);
-const fromCents = (cents) => cents / 100;
-
 // Simple, predictable proposals used when Gemini is unavailable or skips an item,
 // so the queue always works.
 function ruleProposal(item) {
@@ -92,11 +82,6 @@ function ruleProposal(item) {
   }
 }
 
-function defaultQuantity(evidence) {
-  const target = Math.ceil(evidence.weeklyUse * 4 + evidence.reorderPoint - evidence.onHand);
-  return Math.max(1, Math.min(target, evidence.supplierStock));
-}
-
 // Turns a proposal (from Gemini or the rules) into a row the grid can show.
 // This is where every money rule is enforced.
 export function finalize(item, proposal, source) {
@@ -108,49 +93,14 @@ export function finalize(item, proposal, source) {
     source = 'rules';
   }
 
-  const itemCents = toCents(item.amount);
-  let amount = 0;
-  let quantity = null;
-
-  switch (action) {
-    case 'send_reminder':
-    case 'full_refund':
-    case 'accept_claim':
-      amount = item.amount;
-      break;
-    case 'partial_refund':
-    case 'make_offer': {
-      const cents = toCents(proposal.refundAmount);
-      if (!Number.isFinite(cents) || cents <= 0) {
-        warnings.push('No valid amount was suggested. Set one before approving.');
-        amount = null;
-      } else if (cents > itemCents) {
-        warnings.push(`Suggested amount was above the $${item.amount.toFixed(2)} paid, so it was capped.`);
-        amount = item.amount;
-      } else {
-        amount = fromCents(cents);
-      }
-      break;
-    }
-    case 'reorder': {
-      const suggested = proposal.quantity;
-      quantity = Number.isInteger(suggested) && suggested >= 1 ? suggested : defaultQuantity(item.evidence);
-      if (quantity > item.evidence.supplierStock) {
-        warnings.push(`Supplier only has ${item.evidence.supplierStock}, so the quantity was reduced.`);
-        quantity = item.evidence.supplierStock;
-      }
-      amount = fromCents(toCents(item.evidence.unitPrice) * quantity);
-      break;
-    }
-    default:
-      amount = 0; // hold, skip, decline, review and send_message move no money.
-  }
+  const priced = priceAction(item, action, { amount: proposal.refundAmount, quantity: proposal.quantity });
+  warnings.push(...priced.warnings);
 
   return {
     ...item,
     action,
-    proposedAmount: amount,
-    quantity,
+    proposedAmount: priced.amount,
+    quantity: priced.quantity,
     risk: ['low', 'medium', 'high'].includes(proposal.risk) ? proposal.risk : 'medium',
     reason: String(proposal.reason ?? '').slice(0, 400),
     customerMessage: item.type === 'low_stock' ? '' : String(proposal.customerMessage ?? '').slice(0, 600),
