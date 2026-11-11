@@ -1,0 +1,24 @@
+# Render Blueprint: Dashboard > New > Blueprint, pick this repo, then fill in the secrets.
+services:
+  - type: web
+    name: tend
+    runtime: node
+    plan: free
+    # Dev dependencies (Vite) are needed to build the page, so install them all.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Secrets: Render asks for these when the Blueprint is created. Never commit them.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # The passcode judges use to press "Carry out". Share it in the Devpost notes.
+      - key: OWNER_PASSCODE
+        sync: false
