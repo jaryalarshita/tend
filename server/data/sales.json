@@ -1,0 +1,119 @@
+{
+  "shop": "Little Lantern Gifts",
+  "createdAt": "2026-11-11T11:31:39.516Z",
+  "sales": [
+    {
+      "orderId": "3X012814WL995593N",
+      "captureId": "8FS921997S201135Y",
+      "customer": "Priya Raman",
+      "email": "priya.raman@example.com",
+      "item": "Holiday candle gift box",
+      "amount": {
+        "currency_code": "USD",
+        "value": "48.00"
+      },
+      "paidAt": "2026-11-11T11:32:11Z",
+      "shipping": {
+        "status": "delivered",
+        "deliveredAt": "2026-11-09T11:31:39.516Z"
+      },
+      "message": {
+        "receivedAt": "2026-11-10T11:31:39.516Z",
+        "text": "One of the two candles arrived smashed, glass all through the box. Photo attached. Could I get a refund for the broken one?"
+      }
+    },
+    {
+      "orderId": "7RA625049S166700S",
+      "captureId": "06U15834HY517534M",
+      "customer": "Tom Becker",
+      "email": "tom.becker@example.com",
+      "item": "Fairy light jar",
+      "amount": {
+        "currency_code": "USD",
+        "value": "32.00"
+      },
+      "paidAt": "2026-11-11T11:32:16Z",
+      "shipping": {
+        "status": "delivered",
+        "deliveredAt": "2026-11-07T11:31:39.516Z"
+      },
+      "message": {
+        "receivedAt": "2026-11-09T11:31:39.516Z",
+        "text": "The lights don't turn on at all, even with brand new batteries. Really disappointed, it was a gift."
+      }
+    },
+    {
+      "orderId": "1Y256171AG2334721",
+      "captureId": "1BG5913361827215P",
+      "customer": "Ana Souza",
+      "email": "ana.souza@example.com",
+      "item": "Custom gift hamper, large",
+      "amount": {
+        "currency_code": "USD",
+        "value": "120.00"
+      },
+      "paidAt": "2026-11-11T11:32:20Z",
+      "shipping": {
+        "status": "delivered",
+        "deliveredAt": "2026-11-05T11:31:39.516Z"
+      },
+      "message": {
+        "receivedAt": "2026-11-08T11:31:39.516Z",
+        "text": "I ordered the large hamper by mistake, I meant the medium one. Can I swap it or get the difference back?"
+      }
+    },
+    {
+      "orderId": "12W558754S891652A",
+      "captureId": "0G614230DD829420X",
+      "customer": "Jake Morrow",
+      "email": "jake.morrow@example.com",
+      "item": "Deluxe holiday hamper",
+      "amount": {
+        "currency_code": "USD",
+        "value": "210.00"
+      },
+      "paidAt": "2026-11-11T11:32:24Z",
+      "shipping": {
+        "status": "delivered",
+        "deliveredAt": "2026-11-02T11:31:39.516Z"
+      },
+      "message": {
+        "receivedAt": "2026-11-10T11:31:39.516Z",
+        "text": "Found the same thing cheaper somewhere else. Refund me the full amount please, I already used some of it."
+      }
+    },
+    {
+      "orderId": "7M235322T4996541K",
+      "captureId": "2HD76358W28009503",
+      "customer": "Mei Lin",
+      "email": "mei.lin@example.com",
+      "item": "Wrapped candle trio",
+      "amount": {
+        "currency_code": "USD",
+        "value": "26.00"
+      },
+      "paidAt": "2026-11-11T11:32:28Z",
+      "shipping": {
+        "status": "in_transit"
+      },
+      "message": null
+    },
+    {
+      "orderId": "29A10001WU479150B",
+      "captureId": "4RH54187K71615508",
+      "customer": "Sam Okafor",
+      "email": "sam.okafor@example.com",
+      "item": "Fairy light jar, pair",
+      "amount": {
+        "currency_code": "USD",
+        "value": "64.00"
+      },
+      "paidAt": "2026-11-11T11:32:32Z",
+      "shipping": {
+        "status": "delivered",
+        "deliveredAt": "2026-11-08T11:31:39.516Z"
+      },
+      "message": null
+    }
+  ]
+}

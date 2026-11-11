@@ -1,0 +1,9 @@
+[
+  { "productId": "gb-02", "onHand": 1, "reorderPoint": 4, "weeklyUse": 3 },
+  { "productId": "cn-01", "onHand": 2, "reorderPoint": 3, "weeklyUse": 2 },
+  { "productId": "fl-01", "onHand": 0, "reorderPoint": 2, "weeklyUse": 1 },
+  { "productId": "sm-04", "onHand": 1, "reorderPoint": 2, "weeklyUse": 1 },
+  { "productId": "pt-05", "onHand": 5, "reorderPoint": 2, "weeklyUse": 1 },
+  { "productId": "rd-01", "onHand": 3, "reorderPoint": 1, "weeklyUse": 0.5 },
+  { "productId": "gw-03", "onHand": 4, "reorderPoint": 2, "weeklyUse": 1 }
+]
