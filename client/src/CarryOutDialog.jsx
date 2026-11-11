@@ -2,16 +2,34 @@ import { useCallback, useEffect, useState } from 'react';
 import { money } from './format.js';
 import PayPalCheckout from './PayPalCheckout.jsx';
 
-async function postJson(url, body) {
+async function postJson(url, body, headers = {}) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed with status ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed with status ${res.status}`), { status: res.status, data });
   return data;
 }
+
+// The passcode is remembered for this browser tab only. Storage can be blocked, so every
+// access is guarded and the dialog works without it.
+const PASSCODE_KEY = 'tend-owner-passcode';
+const readPasscode = () => {
+  try {
+    return sessionStorage.getItem(PASSCODE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+};
+const savePasscode = (value) => {
+  try {
+    sessionStorage.setItem(PASSCODE_KEY, value);
+  } catch {
+    // Not saved; the owner types it again next time.
+  }
+};
 
 const STATUS_TEXT = { done: 'Done', failed: 'Failed', awaiting_payment: 'Waiting for payment' };
 
@@ -23,9 +41,16 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
   const [outcome, setOutcome] = useState(null);
   const [paid, setPaid] = useState(null);
   const [error, setError] = useState('');
+  const [needsPasscode, setNeedsPasscode] = useState(false);
+  const [passcode, setPasscode] = useState(readPasscode);
+  const [passcodeError, setPasscodeError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
+    fetch('/api/health')
+      .then((res) => res.json())
+      .then((health) => !cancelled && setNeedsPasscode(Boolean(health.passcodeRequired)))
+      .catch(() => {});
     postJson('/api/execute/plan', { actions })
       .then((data) => {
         if (cancelled) return;
@@ -44,12 +69,22 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
 
   async function confirm() {
     setStage('running');
+    setPasscodeError('');
     try {
-      const data = await postJson('/api/execute', { planId: plan.planId });
+      const headers = passcode ? { 'X-Tend-Passcode': passcode } : {};
+      const data = await postJson('/api/execute', { planId: plan.planId }, headers);
+      if (passcode) savePasscode(passcode);
       setOutcome(data);
       onResults(data.results);
       setStage('done');
     } catch (err) {
+      // A missing or wrong passcode (or too many tries) leaves the plan unused: try again.
+      if (err.data?.passcode || err.status === 429) {
+        setNeedsPasscode(true);
+        setPasscodeError(err.message);
+        setStage('review');
+        return;
+      }
       setError(err.message);
       setStage('error');
     }
@@ -143,6 +178,23 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
               </div>
             )}
 
+            {needsPasscode && plan.steps.length > 0 && (
+              <label className="passcode">
+                Owner passcode
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={(event) => setPasscode(event.target.value)}
+                  autoComplete="off"
+                  disabled={stage === 'running'}
+                  aria-describedby="passcode-help"
+                />
+                <small id="passcode-help" className={passcodeError ? 'warning' : 'muted'}>
+                  {passcodeError || 'This hosted demo asks for a passcode before anything is sent to PayPal.'}
+                </small>
+              </label>
+            )}
+
             <div className="dialog-actions">
               <button type="button" onClick={onClose} disabled={stage === 'running'}>
                 Cancel
@@ -151,7 +203,7 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
                 type="button"
                 className="primary"
                 onClick={confirm}
-                disabled={stage === 'running' || plan.steps.length === 0}
+                disabled={stage === 'running' || plan.steps.length === 0 || (needsPasscode && !passcode)}
               >
                 {stage === 'running' ? 'Sending to PayPal…' : `Confirm and carry out ${plan.steps.length}`}
               </button>

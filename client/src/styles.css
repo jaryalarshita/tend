@@ -777,4 +777,20 @@ button.link {
   margin: 0 0 4px;
   font-size: 15px;
 }
-
+.passcode {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  font-weight: 600;
+}
+.passcode input {
+  font: inherit;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: 260px;
+}
+.passcode small {
+  font-weight: 400;
+}

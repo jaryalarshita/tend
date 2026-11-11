@@ -41,7 +41,14 @@ function applyEdit(row, field, value) {
   return edited;
 }
 
-const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// "18:49" today, "10 Nov, 18:49" on any other day.
+const timeOf = (iso) => {
+  const date = new Date(iso);
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toDateString() === new Date().toDateString()
+    ? time
+    : `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${time}`;
+};
 
 // Which model reviewed the queue, and whether a fallback or an earlier review was used.
 function ReviewStatus({ queue }) {
