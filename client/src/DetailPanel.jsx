@@ -1,6 +1,6 @@
 import { ACTION_LABELS } from '../../shared/actions.js';
 import { evidenceLines, money } from './format.js';
-import { canApprove } from './QueueGrid.jsx';
+import { canApprove, isLocked } from './QueueGrid.jsx';
 
 // Everything behind one row: full evidence, the AI's reasoning and the message that
 // will go to the customer, which the owner can rewrite before approving.
@@ -27,6 +27,17 @@ export default function DetailPanel({ row, onEdit, setDecision, onClose }) {
           ✕
         </button>
       </header>
+
+      {row.result && (
+        <p className={`banner ${row.result.status === 'failed' ? 'error-banner' : 'info-banner'}`}>
+          {row.result.status === 'done' && '✓ Carried out in PayPal: '}
+          {row.result.status === 'failed' && '⚠ PayPal said no: '}
+          {row.result.status === 'awaiting_payment' && 'Waiting for payment: '}
+          {row.result.detail}
+          {row.result.paypalRef && <span className="muted"> · PayPal ref {row.result.paypalRef}</span>}
+          {row.result.status === 'failed' && ' You can fix the row and carry it out again.'}
+        </p>
+      )}
 
       <div className="detail-body">
         <section>
@@ -76,16 +87,18 @@ export default function DetailPanel({ row, onEdit, setDecision, onClose }) {
               <textarea
                 rows={4}
                 value={row.customerMessage}
+                readOnly={isLocked(row)}
                 onChange={(event) => onEdit(row.id, 'customerMessage', event.target.value)}
               />
             </label>
           )}
 
+          {!isLocked(row) && (
           <div className="detail-actions">
             <button
               type="button"
               className="primary"
-              disabled={!canApprove(row)}
+              disabled={!canApprove(row) || row.decision === 'approved'}
               onClick={() => setDecision([row.id], 'approved')}
             >
               {row.decision === 'approved' ? 'Approved ✓' : 'Approve'}
@@ -99,6 +112,7 @@ export default function DetailPanel({ row, onEdit, setDecision, onClose }) {
               </button>
             )}
           </div>
+          )}
         </section>
       </div>
     </aside>

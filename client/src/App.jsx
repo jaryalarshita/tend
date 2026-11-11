@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AMOUNT_EDITABLE, priceAction, TYPE_LABELS } from '../../shared/actions.js';
+import CarryOutDialog from './CarryOutDialog.jsx';
 import CommandBar from './CommandBar.jsx';
 import DetailPanel from './DetailPanel.jsx';
 import { evidenceSummary, money } from './format.js';
 import { applyOperations, restoreView, snapshotView } from './gridCommands.js';
-import QueueGrid, { canApprove } from './QueueGrid.jsx';
+import QueueGrid, { canApprove, isLocked } from './QueueGrid.jsx';
 
 const AT_RISK_TYPES = ['overdue_invoice', 'dispute', 'refund_request'];
 
@@ -20,7 +21,9 @@ function toGridRow(row) {
 }
 
 // Applies one owner edit, re-pricing with the same rules the server uses.
+// Rows already carried out in PayPal are locked.
 function applyEdit(row, field, value) {
+  if (isLocked(row)) return row;
   if (!['action', 'proposedAmount', 'quantity'].includes(field)) return { ...row, [field]: value };
 
   const next = { ...row, [field]: value };
@@ -58,7 +61,9 @@ function ReviewStatus({ queue }) {
 const sumOf = (rows, key) => Math.round(rows.reduce((total, row) => total + (row[key] ?? 0) * 100, 0)) / 100;
 
 function Summary({ rows }) {
-  const atRisk = rows.filter((row) => AT_RISK_TYPES.includes(row.type));
+  // Rows already carried out in PayPal are handled, so they leave "at risk".
+  const handled = rows.filter((row) => AT_RISK_TYPES.includes(row.type) && row.result?.status === 'done');
+  const atRisk = rows.filter((row) => AT_RISK_TYPES.includes(row.type) && row.result?.status !== 'done');
   const byType = (type) => sumOf(atRisk.filter((row) => row.type === type), 'atStake');
   const approved = rows.filter((row) => row.decision === 'approved');
   const approvedOf = (actions) => sumOf(approved.filter((row) => actions.includes(row.action)), 'proposedAmount');
@@ -73,6 +78,11 @@ function Summary({ rows }) {
           {money(byType('overdue_invoice'))} overdue · {money(byType('dispute'))} disputed ·{' '}
           {money(byType('refund_request'))} in refund requests
         </span>
+        {handled.length > 0 && (
+          <span className="handled">
+            ✓ {money(sumOf(handled, 'atStake'))} handled through PayPal ({handled.length})
+          </span>
+        )}
       </div>
       <div className="card">
         <span className="label">Chasing</span>
@@ -115,6 +125,7 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [visibleCount, setVisibleCount] = useState(null);
   const [filtered, setFiltered] = useState(false);
+  const [carryOut, setCarryOut] = useState(null);
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
@@ -147,7 +158,7 @@ export default function App() {
     const wanted = new Set(ids);
     setRows((current) =>
       current.map((row) => {
-        if (!wanted.has(row.id)) return row;
+        if (!wanted.has(row.id) || isLocked(row)) return row;
         if (decision === 'approved' && !canApprove(row)) return row;
         return { ...row, decision };
       }),
@@ -169,6 +180,34 @@ export default function App() {
         (skipped ? ` ${skipped} skipped: they need an action or amount first.` : ''),
     );
   }
+
+  // Approved rows not yet done in PayPal. Failed ones can simply be carried out again.
+  const toCarryOut = useMemo(() => rows.filter((row) => row.decision === 'approved' && !isLocked(row)), [rows]);
+
+  function openCarryOut() {
+    setCarryOut(
+      toCarryOut.map((row) => ({
+        id: row.id,
+        action: row.action,
+        amount: row.proposedAmount,
+        quantity: row.quantity,
+        message: row.customerMessage,
+      })),
+    );
+  }
+
+  // Puts each PayPal result on its row: done, failed (with the reason) or waiting for payment.
+  const onResults = useCallback((results) => {
+    const byId = new Map(results.map((result) => [result.id, result]));
+    setRows((current) =>
+      current.map((row) => {
+        const result = byId.get(row.id);
+        return result ? { ...row, result: { status: result.status, detail: result.detail, paypalRef: result.paypalRef } } : row;
+      }),
+    );
+  }, []);
+
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
   function refresh() {
     const decided = rows.some((row) => row.decision !== 'pending');
@@ -334,6 +373,15 @@ export default function App() {
             <button type="button" onClick={() => decideSelected('rejected')}>
               Reject selected
             </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={openCarryOut}
+              disabled={toCarryOut.length === 0}
+              title={toCarryOut.length ? 'Review the plan, then send it to PayPal' : 'Approve some rows first'}
+            >
+              Carry out {toCarryOut.length} approved
+            </button>
             {filtered && visibleCount != null && (
               <span className="view-note">
                 Showing {visibleCount} of {rows.length}
@@ -369,6 +417,10 @@ export default function App() {
           </p>
 
           <DetailPanel row={selectedRow} onEdit={onEdit} setDecision={setDecision} onClose={() => setSelectedId(null)} />
+
+          {carryOut && (
+            <CarryOutDialog actions={carryOut} rowsById={rowsById} onResults={onResults} onClose={() => setCarryOut(null)} />
+          )}
         </>
       )}
     </div>

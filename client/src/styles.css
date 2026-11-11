@@ -187,6 +187,12 @@ button.ghost {
 .card.hero strong {
   font-size: 30px;
 }
+.card.hero .handled {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+}
 
 /* Command bar */
 .command {
@@ -617,3 +623,158 @@ button.link {
     grid-template-columns: 1fr;
   }
 }
+
+/* Results from PayPal */
+.row-done {
+  background-color: #e3f4e8 !important;
+}
+.row-failed {
+  background-color: var(--red-soft) !important;
+}
+.result-badge {
+  display: inline-block;
+  padding: 0 8px;
+  line-height: 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.result-badge.badge-done {
+  background: var(--green);
+  color: #fff;
+}
+.result-badge.badge-awaiting {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.result-tag.result-done {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.result-tag.result-failed {
+  background: var(--red-soft);
+  color: var(--red);
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result-tag.result-awaiting_payment {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+/* Carry-out dialog */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 28, 25, 0.45);
+}
+.dialog {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px 22px;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dialog-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.plan {
+  margin: 12px 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.plan-step small {
+  flex-basis: 100%;
+}
+.plan-totals {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.plan-totals dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.plan-totals dd {
+  margin: 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+.plan-rejected {
+  padding: 10px 12px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  border-radius: 8px;
+}
+.plan-rejected ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.results {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.result {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg);
+}
+.result-done strong {
+  color: var(--green);
+}
+.result-failed {
+  background: var(--red-soft);
+}
+.result-failed strong {
+  color: var(--red);
+}
+.result-awaiting_payment strong {
+  color: var(--amber);
+}
+.checkout {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.checkout h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+

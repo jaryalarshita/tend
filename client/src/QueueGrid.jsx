@@ -18,10 +18,25 @@ const theme = themeQuartz.withParams({
   spacing: 7,
 });
 
-export const canApprove = (row) => row.action !== 'review' && row.proposedAmount != null;
+// Done in PayPal: nothing about the row can change any more.
+export const isLocked = (row) => row?.result?.status === 'done';
+export const canApprove = (row) => !isLocked(row) && row.action !== 'review' && row.proposedAmount != null;
+
+const RESULT_BADGES = {
+  done: { text: '✓ Done', className: 'badge-done' },
+  awaiting_payment: { text: 'Pay…', className: 'badge-awaiting' },
+};
 
 function DecisionCell({ data, node, context }) {
   if (node.rowPinned) return null;
+  const badge = RESULT_BADGES[data.result?.status];
+  if (badge) {
+    return (
+      <span className={`result-badge ${badge.className}`} title={data.result.detail}>
+        {badge.text}
+      </span>
+    );
+  }
   const { decision } = data;
   const approvable = canApprove(data);
   return (
@@ -72,6 +87,7 @@ function ActionCell({ value, data, node, context }) {
     <select
       className={`action-select${value === 'review' ? ' needs-review' : ''}`}
       value={value}
+      disabled={isLocked(data)}
       aria-label={`Action for ${data.customer}`}
       onClick={(event) => event.stopPropagation()}
       onChange={(event) => context.onEdit(data.id, 'action', event.target.value)}
@@ -111,6 +127,11 @@ function ReasonCell({ data, node }) {
   if (node.rowPinned) return null;
   return (
     <div className="reason">
+      {data.result && (
+        <span className={`tag result-tag result-${data.result.status}`} title={data.result.detail}>
+          {data.result.status === 'failed' ? `Failed: ${data.result.detail}` : data.result.detail}
+        </span>
+      )}
       {data.source === 'rules' && <span className="tag">Rules</span>}
       {data.source === 'cached' && (
         <span className="tag" title="Gemini was busy, so this is its earlier review of the same item.">
@@ -164,6 +185,8 @@ const columnDefs = [
     width: 156,
     // Shown, filtered and searched by its label ("Partial refund"), stored as the action key.
     refData: ACTION_LABELS,
+    // The menu locks once the row is done in PayPal, so redraw on any row change.
+    equals: () => false,
     filterValueGetter: ({ data }) => ACTION_LABELS[data.action],
     getQuickFilterText: ({ data }) => ACTION_LABELS[data.action],
     cellRenderer: ActionCell,
@@ -175,7 +198,7 @@ const columnDefs = [
     headerTooltip: 'Editable for partial refunds and dispute offers, up to what PayPal says was paid.',
     width: 114,
     type: 'rightAligned',
-    editable: ({ data, node }) => !node.rowPinned && AMOUNT_EDITABLE.has(data.action),
+    editable: ({ data, node }) => !node.rowPinned && !isLocked(data) && AMOUNT_EDITABLE.has(data.action),
     cellEditor: 'agNumberCellEditor',
     cellEditorParams: { min: 0, precision: 2 },
     cellRenderer: AmountCell,
@@ -186,7 +209,7 @@ const columnDefs = [
     field: 'quantity',
     width: 72,
     type: 'rightAligned',
-    editable: ({ data, node }) => !node.rowPinned && data.action === 'reorder',
+    editable: ({ data, node }) => !node.rowPinned && !isLocked(data) && data.action === 'reorder',
     cellEditor: 'agNumberCellEditor',
     cellEditorParams: { min: 1, precision: 0 },
     cellRenderer: QuantityCell,
@@ -202,6 +225,8 @@ const columnDefs = [
     flex: 3,
     minWidth: 200,
     cellRenderer: ReasonCell,
+    // Also shows the PayPal result, so redraw on any row change, not only a new reason.
+    equals: () => false,
     tooltipField: 'reason',
     filter: 'agTextColumnFilter',
     suppressHeaderFilterButton: true,
@@ -214,6 +239,8 @@ const defaultColDef = { resizable: true, sortable: true, filterParams: { maxNumC
 const rowClassRules = {
   'row-approved': ({ data, node }) => !node.rowPinned && data?.decision === 'approved',
   'row-rejected': ({ data, node }) => !node.rowPinned && data?.decision === 'rejected',
+  'row-done': ({ data, node }) => !node.rowPinned && data?.result?.status === 'done',
+  'row-failed': ({ data, node }) => !node.rowPinned && data?.result?.status === 'failed',
 };
 
 const rowSelection = { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false };

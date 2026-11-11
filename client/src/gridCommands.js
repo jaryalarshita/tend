@@ -108,7 +108,8 @@ export function applyOperations(operations, ctx) {
         let skipped = 0;
         for (const id of operation.rowIds) {
           const row = byId.get(id);
-          if (operation.decision === 'approved' && !canApprove(row)) {
+          // Rows already carried out in PayPal can't be re-decided.
+          if (row.result?.status === 'done' || (operation.decision === 'approved' && !canApprove(row))) {
             skipped++;
             continue;
           }
