@@ -2,9 +2,30 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
+import { proposeActions } from './agent.js';
 import { isConfigured as isPayPalConfigured } from './paypal.js';
+import { collectItems } from './sources.js';
 
 dotenv.config({ quiet: true });
+
+// A Gemini review takes ~15 s, so the queue is cached and only rebuilt on request.
+// Concurrent requests share one in-flight build instead of calling Gemini twice.
+let cachedQueue = null;
+let building = null;
+
+async function buildQueue() {
+  const startedAt = Date.now();
+  const { items, errors } = await collectItems();
+  const { rows, model, aiError } = await proposeActions(items);
+  return {
+    generatedAt: new Date().toISOString(),
+    tookMs: Date.now() - startedAt,
+    model,
+    aiError,
+    sourceErrors: errors,
+    rows,
+  };
+}
 
 const app = express();
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
@@ -18,6 +39,20 @@ app.get('/api/health', (_req, res) => {
     paypalConfigured: isPayPalConfigured(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
   });
+});
+
+app.get('/api/queue', async (req, res, next) => {
+  try {
+    if (!cachedQueue || req.query.refresh === '1') {
+      building ??= buildQueue().finally(() => {
+        building = null;
+      });
+      cachedQueue = await building;
+    }
+    res.json(cachedQueue);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // The client ID is public by design: PayPal's button script needs it in the browser.
