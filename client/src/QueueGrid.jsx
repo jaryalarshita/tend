@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { ACTION_LABELS, ACTIONS, AMOUNT_EDITABLE } from '../../shared/actions.js';
@@ -162,8 +162,10 @@ const columnDefs = [
     headerName: 'Action ✎',
     headerTooltip: 'Pick a different action from the menu. Only actions that fit the row are listed.',
     width: 156,
-    // Shown and filtered by its label ("Partial refund"), stored as the action key.
+    // Shown, filtered and searched by its label ("Partial refund"), stored as the action key.
     refData: ACTION_LABELS,
+    filterValueGetter: ({ data }) => ACTION_LABELS[data.action],
+    getQuickFilterText: ({ data }) => ACTION_LABELS[data.action],
     cellRenderer: ActionCell,
     filter: 'agTextColumnFilter',
   },
@@ -188,6 +190,8 @@ const columnDefs = [
     cellEditor: 'agNumberCellEditor',
     cellEditorParams: { min: 1, precision: 0 },
     cellRenderer: QuantityCell,
+    filter: 'agNumberColumnFilter',
+    suppressHeaderFilterButton: true,
     headerName: 'Qty ✎',
     headerTooltip: 'Editable for reorders. The price always comes from the catalog.',
   },
@@ -204,7 +208,8 @@ const columnDefs = [
   },
 ];
 
-const defaultColDef = { resizable: true, sortable: true };
+// Up to four conditions per column, so the agent can ask for "refunds or disputes".
+const defaultColDef = { resizable: true, sortable: true, filterParams: { maxNumConditions: 4 } };
 
 const rowClassRules = {
   'row-approved': ({ data, node }) => !node.rowPinned && data?.decision === 'approved',
@@ -214,9 +219,19 @@ const rowClassRules = {
 const rowSelection = { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false };
 
 const QueueGrid = forwardRef(function QueueGrid(
-  { rows, quickFilter, onEdit, onSelectRow, setDecision, onFilterChanged },
+  { rows, quickFilter, focusIds, onEdit, onSelectRow, setDecision, onFilterChanged },
   ref,
 ) {
+  // "Focus" shows only rows the agent picked by ID, through AG Grid's external filter.
+  // The callbacks read a ref so they stay stable; the grid is told when the set changes.
+  const focusRef = useRef(focusIds);
+  focusRef.current = focusIds;
+  const isExternalFilterPresent = useCallback(() => focusRef.current != null, []);
+  const doesExternalFilterPass = useCallback((node) => focusRef.current?.has(node.data.id) ?? true, []);
+  useEffect(() => {
+    ref.current?.api?.onFilterChanged();
+  }, [focusIds, ref]);
+
   const pinnedBottomRowData = useMemo(() => {
     const approved = rows.filter((row) => row.decision === 'approved');
     const sum = (list, key) => Math.round(list.reduce((total, row) => total + (row[key] ?? 0) * 100, 0)) / 100;
@@ -244,6 +259,8 @@ const QueueGrid = forwardRef(function QueueGrid(
       selectionColumnDef={{ pinned: 'left', width: 48 }}
       pinnedBottomRowData={pinnedBottomRowData}
       quickFilterText={quickFilter}
+      isExternalFilterPresent={isExternalFilterPresent}
+      doesExternalFilterPass={doesExternalFilterPass}
       readOnlyEdit
       onCellEditRequest={({ data, colDef, newValue }) => onEdit(data.id, colDef.field, newValue)}
       onRowClicked={({ data, node }) => !node.rowPinned && onSelectRow(data.id)}

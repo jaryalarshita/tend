@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AMOUNT_EDITABLE, priceAction, TYPE_LABELS } from '../../shared/actions.js';
+import CommandBar from './CommandBar.jsx';
 import DetailPanel from './DetailPanel.jsx';
-import { money } from './format.js';
+import { evidenceSummary, money } from './format.js';
+import { applyOperations, restoreView, snapshotView } from './gridCommands.js';
 import QueueGrid, { canApprove } from './QueueGrid.jsx';
 
 const AT_RISK_TYPES = ['overdue_invoice', 'dispute', 'refund_request'];
@@ -41,6 +43,7 @@ const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', 
 // Which model reviewed the queue, and whether a fallback or an earlier review was used.
 function ReviewStatus({ queue }) {
   if (queue.cachedReviewAt) return <>Showing the {timeOf(queue.cachedReviewAt)} review by {queue.model}</>;
+  if (queue.reusedReviewAt) return <>Reviewed by {queue.model} at {timeOf(queue.reusedReviewAt)}, nothing has changed since</>;
   if (!queue.model) return <>Rule-based proposals · {timeOf(queue.generatedAt)}</>;
   const busy = queue.fallbackFrom?.map((failure) => failure.split(' ')[0]).join(', ');
   return (
@@ -107,6 +110,11 @@ export default function App() {
   const [quickFilter, setQuickFilter] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [notice, setNotice] = useState('');
+  const [focusIds, setFocusIds] = useState(null);
+  const [commands, setCommands] = useState([]);
+  const [running, setRunning] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(null);
+  const [filtered, setFiltered] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
@@ -118,6 +126,8 @@ export default function App() {
       setQueue(data);
       setRows(data.rows.map(toGridRow));
       setSelectedId(null);
+      setCommands([]);
+      setFocusIds(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -166,6 +176,96 @@ export default function App() {
     setNotice('');
     load(true);
   }
+
+  // Sends the command and a one-line view of each row to Gemini, then applies the
+  // operations it returns. If Gemini is busy, the text is used as a plain search instead.
+  async function runCommand(text) {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const id = Date.now();
+    setRunning(true);
+    setCommands((current) => [{ id, text, status: 'running' }, ...current].slice(0, 3));
+    const finish = (entry) =>
+      setCommands((current) => current.map((item) => (item.id === id ? { ...item, ...entry } : item)));
+
+    try {
+      const res = await fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          rows: rows.map((row) => ({
+            id: row.id,
+            typeLabel: row.typeLabel,
+            customer: row.customer,
+            atStake: row.atStake,
+            evidence: evidenceSummary(row),
+            action: row.action,
+            proposedAmount: row.proposedAmount,
+            quantity: row.quantity,
+            risk: row.risk,
+            decision: row.decision,
+          })),
+        }),
+      });
+      const data = await res.json();
+      const undo = { rows, quickFilter, focusIds, view: snapshotView(api) };
+
+      if (res.status === 503) {
+        // Search the whole queue, not just what an earlier command left showing.
+        api.setFilterModel(null);
+        setFocusIds(null);
+        setQuickFilter(text);
+        finish({ status: 'fallback', reply: 'Gemini is busy, so I searched for your words instead.', steps: [`Searched for “${text}”`], undo });
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || `API returned ${res.status}`);
+
+      const { log, changed } = applyOperations(data.operations, {
+        api,
+        rows,
+        applyEdit,
+        canApprove,
+        setRows,
+        setQuickFilter,
+        setFocus: setFocusIds,
+      });
+      finish({ status: 'done', reply: data.reply, steps: log, model: data.model, undo: data.operations.length ? undo : null });
+      // Let the grid render the new values first, then flash the cells that changed.
+      if (changed.length) {
+        setTimeout(() => {
+          const rowNodes = changed.map((rowId) => api.getRowNode(rowId)).filter(Boolean);
+          api.flashCells({ rowNodes });
+        }, 60);
+      }
+    } catch (err) {
+      finish({ status: 'error', reply: `That didn't work: ${err.message}` });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function undoCommand(entry) {
+    const api = gridRef.current?.api;
+    if (!api || !entry.undo) return;
+    setRows(entry.undo.rows);
+    setQuickFilter(entry.undo.quickFilter);
+    setFocusIds(entry.undo.focusIds);
+    restoreView(api, entry.undo.view);
+    setCommands((current) => current.map((item) => (item.id === entry.id ? { ...item, undo: null, status: 'undone' } : item)));
+  }
+
+  function clearView() {
+    gridRef.current?.api?.setFilterModel(null);
+    setQuickFilter('');
+    setFocusIds(null);
+  }
+
+  // Called by the grid whenever filters change, so the toolbar can say what is hidden.
+  const onFilterChanged = useCallback(({ api }) => {
+    setVisibleCount(api.getDisplayedRowCount());
+    setFiltered(api.isAnyFilterPresent());
+  }, []);
 
   const selectedRow = useMemo(() => rows.find((row) => row.id === selectedId) ?? null, [rows, selectedId]);
 
@@ -218,6 +318,8 @@ export default function App() {
         <>
           <Summary rows={rows} />
 
+          <CommandBar onRun={runCommand} running={running} entries={commands} onUndo={undoCommand} />
+
           <div className="toolbar">
             <input
               type="search"
@@ -232,6 +334,14 @@ export default function App() {
             <button type="button" onClick={() => decideSelected('rejected')}>
               Reject selected
             </button>
+            {filtered && visibleCount != null && (
+              <span className="view-note">
+                Showing {visibleCount} of {rows.length}
+                <button type="button" className="ghost link" onClick={clearView}>
+                  Clear view
+                </button>
+              </span>
+            )}
             <span className="notice muted" role="status">
               {notice}
             </span>
@@ -245,6 +355,8 @@ export default function App() {
               ref={gridRef}
               rows={rows}
               quickFilter={quickFilter}
+              focusIds={focusIds}
+              onFilterChanged={onFilterChanged}
               onEdit={onEdit}
               onSelectRow={setSelectedId}
               setDecision={setDecision}

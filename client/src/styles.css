@@ -188,6 +188,142 @@ button.ghost {
   font-size: 30px;
 }
 
+/* Command bar */
+.command {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.command-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.command-icon {
+  color: var(--accent);
+  font-size: 18px;
+  padding-left: 4px;
+}
+.command-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.command-form input:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+.chip {
+  font-size: 13px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+}
+.command-log {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.entry {
+  position: relative;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  border-radius: 0 8px 8px 0;
+}
+.entry-running {
+  border-left-color: var(--border);
+}
+.entry-fallback {
+  border-left-color: var(--amber);
+}
+.entry-error {
+  border-left-color: var(--red);
+}
+.entry-undone {
+  opacity: 0.6;
+}
+.entry-undone .entry-text {
+  text-decoration: line-through;
+}
+.entry-old {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.entry-old .entry-head,
+.entry-old .entry-reply {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-old .entry-text {
+  font-weight: 500;
+}
+.entry-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.entry-text {
+  font-weight: 600;
+}
+.undo {
+  margin-left: auto;
+  padding: 2px 8px;
+  color: var(--accent);
+}
+.entry-reply {
+  margin: 2px 0 0;
+}
+.entry-steps {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.entry-model {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  font-size: 11px;
+}
+.view-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+button.link {
+  padding: 2px 6px;
+  text-decoration: underline;
+  color: var(--accent);
+}
+
 /* Toolbar */
 .toolbar {
   display: flex;
