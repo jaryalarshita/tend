@@ -3,20 +3,24 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
 import { proposeActions } from './agent.js';
+import { interpretCommand } from './commands.js';
 import { isConfigured as isPayPalConfigured } from './paypal.js';
 import { collectItems } from './sources.js';
 
 dotenv.config({ quiet: true });
 
-// A Gemini review takes ~15 s, so the queue is cached and only rebuilt on request.
+// A Gemini review takes 10-60 s, so the queue is cached and only rebuilt on request.
 // Concurrent requests share one in-flight build instead of calling Gemini twice.
 let cachedQueue = null;
 let building = null;
 
-async function buildQueue() {
+// `fresh` asks Gemini again; otherwise a recent saved review of the same items is reused.
+async function buildQueue(fresh) {
   const startedAt = Date.now();
   const { items, errors } = await collectItems();
-  const { rows, model, aiError, fallbackFrom, cachedReviewAt } = await proposeActions(items);
+  const { rows, model, aiError, fallbackFrom, cachedReviewAt, reusedReviewAt } = await proposeActions(items, {
+    reuseSaved: !fresh,
+  });
   return {
     generatedAt: new Date().toISOString(),
     tookMs: Date.now() - startedAt,
@@ -24,6 +28,7 @@ async function buildQueue() {
     aiError,
     fallbackFrom,
     cachedReviewAt,
+    reusedReviewAt,
     sourceErrors: errors,
     rows,
   };
@@ -33,7 +38,7 @@ const app = express();
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const port = process.env.PORT || 3001;
 
-app.use(express.json());
+app.use(express.json({ limit: '200kb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -45,14 +50,33 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/queue', async (req, res, next) => {
   try {
-    if (!cachedQueue || req.query.refresh === '1') {
-      building ??= buildQueue().finally(() => {
+    const fresh = req.query.refresh === '1';
+    if (!cachedQueue || fresh) {
+      building ??= buildQueue(fresh).finally(() => {
         building = null;
       });
       cachedQueue = await building;
     }
     res.json(cachedQueue);
   } catch (err) {
+    next(err);
+  }
+});
+
+// Typed commands that drive the grid. Gemini returns grid operations only; the browser
+// applies them, and nothing here reaches PayPal.
+app.post('/api/command', async (req, res, next) => {
+  const { text, rows } = req.body ?? {};
+  if (typeof text !== 'string' || !text.trim() || !Array.isArray(rows)) {
+    return res.status(400).json({ error: 'Send { text, rows }' });
+  }
+  try {
+    res.json(await interpretCommand(text.trim(), rows));
+  } catch (err) {
+    if (err.failures) {
+      // Every model was busy: the browser falls back to a plain search.
+      return res.status(503).json({ error: `Gemini is busy (${err.failures.join('; ')})` });
+    }
     next(err);
   }
 });
