@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { apiFetch } from './api.js';
 
 // Kept outside the component so PayPal's script is only ever added to the page once.
 let sdkPromise = null;
@@ -18,7 +19,7 @@ function loadPayPalSdk(clientId) {
 }
 
 async function requestJson(url, options) {
-  const res = await fetch(url, options);
+  const res = await apiFetch(url, options);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed with status ${res.status}`);
   return data;

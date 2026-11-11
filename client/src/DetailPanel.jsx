@@ -30,7 +30,7 @@ export default function DetailPanel({ row, onEdit, setDecision, onClose }) {
 
       {row.result && (
         <p className={`banner ${row.result.status === 'failed' ? 'error-banner' : 'info-banner'}`}>
-          {row.result.status === 'done' && '✓ Carried out in PayPal: '}
+          {row.result.status === 'done' && (row.result.sentToPayPal === false ? '✓ Recorded as handled: ' : '✓ Carried out in PayPal: ')}
           {row.result.status === 'failed' && '⚠ PayPal said no: '}
           {row.result.status === 'awaiting_payment' && 'Waiting for payment: '}
           {row.result.detail}

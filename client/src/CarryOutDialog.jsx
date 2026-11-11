@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import { StepList } from './ActivityPanel.jsx';
+import { apiFetch } from './api.js';
 import { money } from './format.js';
 import PayPalCheckout from './PayPalCheckout.jsx';
 
 async function postJson(url, body, headers = {}) {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
@@ -35,7 +37,7 @@ const STATUS_TEXT = { done: 'Done', failed: 'Failed', awaiting_payment: 'Waiting
 
 // The confirmation step between "approved" and "sent to PayPal". It shows the server's
 // own plan (amounts re-checked against fresh PayPal data), and only a confirmed plan runs.
-export default function CarryOutDialog({ actions, rowsById, onResults, onClose }) {
+export default function CarryOutDialog({ actions, rowsById, onResults, onClose, steps = [] }) {
   const [stage, setStage] = useState('planning'); // planning | review | running | done | error
   const [plan, setPlan] = useState(null);
   const [outcome, setOutcome] = useState(null);
@@ -44,10 +46,15 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
   const [needsPasscode, setNeedsPasscode] = useState(false);
   const [passcode, setPasscode] = useState(readPasscode);
   const [passcodeError, setPasscodeError] = useState('');
+  // Live PayPal progress for this carry-out: feed steps that arrive after Confirm. Compared
+  // by step number, not time, so a wrong clock on either side can't hide them.
+  const [confirmedAfter, setConfirmedAfter] = useState(null);
+  const progress =
+    confirmedAfter == null ? [] : steps.filter((s) => s.id > confirmedAfter && (s.kind === 'action' || s.kind === 'done'));
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/health')
+    apiFetch('/api/health')
       .then((res) => res.json())
       .then((health) => !cancelled && setNeedsPasscode(Boolean(health.passcodeRequired)))
       .catch(() => {});
@@ -68,6 +75,7 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
   }, [actions]);
 
   async function confirm() {
+    setConfirmedAfter(steps.at(-1)?.id ?? 0);
     setStage('running');
     setPasscodeError('');
     try {
@@ -193,6 +201,12 @@ export default function CarryOutDialog({ actions, rowsById, onResults, onClose }
                   {passcodeError || 'This hosted demo asks for a passcode before anything is sent to PayPal.'}
                 </small>
               </label>
+            )}
+
+            {stage === 'running' && (
+              <div className="dialog-progress">
+                <StepList steps={progress} emptyText="Sending to PayPal…" />
+              </div>
             )}
 
             <div className="dialog-actions">

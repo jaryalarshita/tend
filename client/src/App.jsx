@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AMOUNT_EDITABLE, priceAction, TYPE_LABELS } from '../../shared/actions.js';
+import ActivityPanel, { StepList } from './ActivityPanel.jsx';
+import { apiFetch, useActivity } from './api.js';
 import CarryOutDialog from './CarryOutDialog.jsx';
 import CommandBar from './CommandBar.jsx';
 import DetailPanel from './DetailPanel.jsx';
@@ -87,7 +89,7 @@ function Summary({ rows }) {
         </span>
         {handled.length > 0 && (
           <span className="handled">
-            ✓ {money(sumOf(handled, 'atStake'))} handled through PayPal ({handled.length})
+            ✓ {money(sumOf(handled, 'atStake'))} handled ({handled.length})
           </span>
         )}
       </div>
@@ -133,12 +135,15 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(null);
   const [filtered, setFiltered] = useState(false);
   const [carryOut, setCarryOut] = useState(null);
+  const [loadStartedAt, setLoadStartedAt] = useState(() => Date.now() - 2000);
+  const { steps, connected } = useActivity();
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/queue${refresh ? '?refresh=1' : ''}`);
+      setLoadStartedAt(Date.now() - 2000);
+      const res = await apiFetch(`/api/queue${refresh ? '?refresh=1' : ''}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `API returned ${res.status}`);
       setQueue(data);
@@ -209,7 +214,12 @@ export default function App() {
     setRows((current) =>
       current.map((row) => {
         const result = byId.get(row.id);
-        return result ? { ...row, result: { status: result.status, detail: result.detail, paypalRef: result.paypalRef } } : row;
+        return result
+          ? {
+              ...row,
+              result: { status: result.status, detail: result.detail, paypalRef: result.paypalRef, sentToPayPal: result.sentToPayPal },
+            }
+          : row;
       }),
     );
   }, []);
@@ -235,7 +245,7 @@ export default function App() {
       setCommands((current) => current.map((item) => (item.id === id ? { ...item, ...entry } : item)));
 
     try {
-      const res = await fetch('/api/command', {
+      const res = await apiFetch('/api/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -351,14 +361,17 @@ export default function App() {
       ))}
       {error && (
         <p className="banner error-banner" role="alert">
-          Could not load the queue: {error}
+          {queue ? `Couldn't refresh, still showing the last queue: ${error}` : `Could not load the queue: ${error}`}
         </p>
       )}
 
       {loading && !queue ? (
         <div className="loading">
           <div className="spinner" aria-hidden="true" />
-          <p>Reading PayPal and asking Gemini to review each item. This usually takes 15 to 60 seconds.</p>
+          <p>Reading PayPal and asking Gemini to review each item. This can take up to a minute.</p>
+          <div className="loading-steps">
+            <StepList steps={steps.filter((s) => s.at >= loadStartedAt).slice(-8)} emptyText="Connecting…" />
+          </div>
         </div>
       ) : (
         <>
@@ -426,10 +439,17 @@ export default function App() {
           <DetailPanel row={selectedRow} onEdit={onEdit} setDecision={setDecision} onClose={() => setSelectedId(null)} />
 
           {carryOut && (
-            <CarryOutDialog actions={carryOut} rowsById={rowsById} onResults={onResults} onClose={() => setCarryOut(null)} />
+            <CarryOutDialog
+            actions={carryOut}
+            rowsById={rowsById}
+            onResults={onResults}
+            onClose={() => setCarryOut(null)}
+            steps={steps}
+          />
           )}
         </>
       )}
+      <ActivityPanel steps={steps} connected={connected} />
     </div>
   );
 }

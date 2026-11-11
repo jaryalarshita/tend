@@ -794,3 +794,163 @@ button.link {
 .passcode small {
   font-weight: 400;
 }
+
+/* Live agent activity */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.step {
+  display: grid;
+  grid-template-columns: 18px 64px 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+.step-icon {
+  font-weight: 700;
+  text-align: center;
+}
+.step-ok .step-icon {
+  color: var(--green);
+}
+.step-warn .step-icon {
+  color: var(--amber);
+}
+.step-fail .step-icon {
+  color: var(--red);
+}
+.step-fail {
+  background: var(--red-soft);
+}
+.step-start .step-icon {
+  color: var(--accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+.step-passed .step-icon {
+  color: var(--muted);
+}
+.step-kind {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.step-time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.steps-end {
+  height: 0;
+}
+.steps-empty {
+  font-size: 13px;
+  margin: 4px 0;
+}
+.loading-steps {
+  width: min(560px, 100%);
+  text-align: left;
+}
+.dialog-progress {
+  margin-top: 12px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.activity {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.activity-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.activity-toggle.working {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.badge-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.activity-panel {
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(420px, calc(100vh - 100px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.activity-panel header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.activity-panel header button {
+  margin-left: auto;
+  padding: 2px 8px;
+}
+.activity-panel .steps,
+.activity-panel .steps-empty {
+  overflow: auto;
+  padding: 8px 10px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c4c9c6;
+  flex: none;
+}
+.dot.live {
+  background: var(--green);
+}
+.dot.pulse {
+  background: var(--accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot.pulse,
+  .step-start .step-icon,
+  .spinner {
+    animation: none;
+  }
+}
+
