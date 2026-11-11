@@ -265,7 +265,7 @@ const QueueGrid = forwardRef(function QueueGrid(
     return [
       {
         id: 'totals',
-        customer: `Total · ${approved.length} of ${rows.length} approved`,
+        customer: `Total · ${approved.length}/${rows.length} approved`,
         atStake: sum(rows, 'atStake'),
         proposedAmount: sum(approved, 'proposedAmount'),
       },
