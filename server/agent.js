@@ -4,6 +4,7 @@
 // size, but which is capped at what PayPal says was paid and shown to the owner first.
 import { readFile, writeFile } from 'node:fs/promises';
 import { ACTIONS, priceAction } from '../shared/actions.js';
+import { step } from './activity.js';
 import { generateJson } from './gemini.js';
 
 // A full review normally takes 10-40 s. Past this, a model is treated as busy.
@@ -177,7 +178,9 @@ export async function proposeActions(items, { reuseSaved = false } = {}) {
   const reusable = reuseSaved && recent ? items.filter(unchanged) : [];
   const toAsk = items.filter((item) => !reusable.includes(item));
 
+  if (reusable.length) step('ai', `Reusing the saved AI review for ${reusable.length} unchanged item${reusable.length === 1 ? '' : 's'}`);
   if (toAsk.length === 0) {
+    step('done', `Queue ready: ${items.length} items, no AI call needed`);
     return {
       rows: items.map((item) => finalize(item, saved.proposals[item.id].proposal, 'gemini')),
       model: saved?.model ?? null,
@@ -189,6 +192,7 @@ export async function proposeActions(items, { reuseSaved = false } = {}) {
     };
   }
 
+  step('ai', `Sending ${toAsk.length} item${toAsk.length === 1 ? '' : 's'} to Gemini with the shop policy`, 'start');
   try {
     const result = await askGemini(toAsk);
     byId = new Map(result.proposals.map((proposal) => [proposal.itemId, proposal]));
@@ -208,6 +212,7 @@ export async function proposeActions(items, { reuseSaved = false } = {}) {
       return proposal ? finalize(item, proposal, 'gemini') : finalize(item, ruleProposal(item), 'rules');
     });
   } else {
+    step('rules', 'Using the last AI review where nothing changed, simple rules for the rest', 'warn');
     const previous = await loadLastReview();
     rows = items.map((item) => {
       const saved = previous?.proposals?.[item.id];
@@ -218,6 +223,16 @@ export async function proposeActions(items, { reuseSaved = false } = {}) {
       return finalize(item, ruleProposal(item), 'rules');
     });
   }
+
+  const adjusted = rows.filter((row) => row.warnings.length);
+  step(
+    'rules',
+    adjusted.length
+      ? `Money rules adjusted ${adjusted.length} proposal${adjusted.length === 1 ? '' : 's'} (caps, prices or actions)`
+      : 'Money rules checked every proposal: amounts from PayPal, prices from the catalog',
+    adjusted.length ? 'warn' : 'ok',
+  );
+  step('done', `Queue ready: ${rows.length} items`);
 
   return {
     rows,

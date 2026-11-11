@@ -1,6 +1,7 @@
 // One way in to Gemini for the whole app: the queue review and typed grid commands both
 // use generateJson(), which tries each model in turn until one answers.
 import { GoogleGenAI } from '@google/genai';
+import { step } from './activity.js';
 
 // Gemini models hit "high demand" (503) spikes, so a busy model hands over to the next
 // instead of failing. 2.5 Flash is a different family, in case the whole 3.x line is busy.
@@ -57,6 +58,8 @@ export async function generateJson({ systemInstruction, contents, schema, perMod
       failures.push(`${model} skipped (out of time)`);
       continue;
     }
+    const startedAt = Date.now();
+    step('ai', `Asking ${model}…`, 'start');
     try {
       const response = await getClient().models.generateContent({
         model,
@@ -71,13 +74,18 @@ export async function generateJson({ systemInstruction, contents, schema, perMod
           thinkingConfig: model.startsWith('gemini-2') ? { thinkingBudget: 1024 } : { thinkingLevel: 'LOW' },
         },
       });
-      return { data: JSON.parse(response.text), model, failures };
+      const data = JSON.parse(response.text);
+      step('ai', `${model} answered in ${((Date.now() - startedAt) / 1000).toFixed(1)} s`);
+      return { data, model, failures };
     } catch (err) {
-      failures.push(`${model} ${describeFailure(err)}`);
+      const why = describeFailure(err);
+      failures.push(`${model} ${why}`);
+      step('ai', `${model} ${why}`, 'warn', 'Trying the next model');
       console.warn(`Gemini ${model} failed: ${err.message}`);
     }
   }
 
+  step('ai', 'Every Gemini model is unavailable right now', 'fail');
   const err = new Error(failures.join('; '));
   err.failures = failures;
   throw err;

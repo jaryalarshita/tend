@@ -2,6 +2,7 @@
 // returns operations; sanitize() drops anything malformed, and the browser applies the
 // rest through the same rules as a manual edit. Nothing here touches PayPal.
 import { ACTION_LABELS, TYPE_LABELS } from '../shared/actions.js';
+import { step } from './activity.js';
 import { generateJson } from './gemini.js';
 
 // Commands should feel instant, so give up sooner than the queue review does.
@@ -152,6 +153,7 @@ export async function interpretCommand(text, rows) {
     decision: clip(row.decision, 10),
   }));
 
+  step('command', `Command: “${clip(text, 120)}”`, 'start');
   const { data, model } = await generateJson({
     systemInstruction: SYSTEM,
     contents: JSON.stringify({ command: clip(text), rows: compact }),
@@ -160,9 +162,9 @@ export async function interpretCommand(text, rows) {
     totalMs: TOTAL_BUDGET_MS,
   });
 
-  return {
-    reply: clip(data.reply, 400),
-    operations: sanitize(data.operations, compact.map((row) => row.id)),
-    model,
-  };
+  const operations = sanitize(data.operations, compact.map((row) => row.id));
+  const dropped = (data.operations?.length ?? 0) - operations.length;
+  step('command', `Turned the command into ${operations.length} grid step${operations.length === 1 ? '' : 's'}`);
+  if (dropped > 0) step('command', `Dropped ${dropped} step${dropped === 1 ? '' : 's'} that didn't fit the grid`, 'warn');
+  return { reply: clip(data.reply, 400), operations, model };
 }

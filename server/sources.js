@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import catalog from './data/catalog.json' with { type: 'json' };
 import inventory from './data/inventory.json' with { type: 'json' };
+import { step } from './activity.js';
 import { doneByItem } from './history.js';
 import { paypalRequest } from './paypal.js';
 
@@ -172,14 +173,33 @@ export async function collectItems(now = Date.now()) {
   };
   const items = [];
   const errors = [];
+  step('paypal', 'Reading invoices, sales and disputes from PayPal, and the stock list', 'start');
   const results = await Promise.allSettled(Object.values(sources).map((load) => load()));
   Object.keys(sources).forEach((type, index) => {
     const result = results[index];
-    if (result.status === 'fulfilled') items.push(...result.value);
-    else errors.push({ source: type, message: result.reason?.message ?? String(result.reason) });
+    if (result.status === 'fulfilled') {
+      items.push(...result.value);
+      step(type === 'low_stock' ? 'stock' : 'paypal', FOUND[type](result.value.length));
+    } else {
+      errors.push({ source: type, message: result.reason?.message ?? String(result.reason) });
+      step('paypal', `Couldn't read ${FOUND_NAME[type]}`, 'fail', result.reason?.message);
+    }
   });
-  return { items: await applyHistory(items, now), errors };
+  const open = await applyHistory(items, now);
+  if (open.length < items.length) {
+    step('history', `${items.length - open.length} already handled by Tend, left out`);
+  }
+  return { items: open, errors };
 }
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const FOUND = {
+  overdue_invoice: (n) => `Found ${plural(n, 'overdue invoice', 'overdue invoices')}`,
+  refund_request: (n) => `Found ${plural(n, 'refund request', 'refund requests')} that can still be refunded`,
+  dispute: (n) => `Found ${plural(n, 'open dispute', 'open disputes')}`,
+  low_stock: (n) => `${plural(n, 'supply is', 'supplies are')} at or below the reorder point`,
+};
+const FOUND_NAME = { overdue_invoice: 'invoices', refund_request: 'sales', dispute: 'disputes', low_stock: 'the stock list' };
 
 // Once Tend has settled a refund request (refunded or declined) it leaves the queue, and
 // so does stock that was reordered or skipped in the last 2 weeks. Invoices and disputes

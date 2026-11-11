@@ -5,6 +5,7 @@ import express from 'express';
 import { proposeActions } from './agent.js';
 import { interpretCommand } from './commands.js';
 import { captureReorder, executePlan, preparePlan } from './executor.js';
+import { asShared, streamActivity, withSession } from './activity.js';
 import { freshReviewWait, limitCommands, passcodeRequired, requirePasscode } from './guard.js';
 import { isConfigured as isPayPalConfigured } from './paypal.js';
 import { collectItems } from './sources.js';
@@ -44,6 +45,11 @@ const port = process.env.PORT || 3001;
 // Render sits behind a proxy; this makes req.ip the visitor's address for the rate limits.
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '200kb' }));
+// Tags each request with its browser tab, for the live activity feed.
+app.use('/api', withSession);
+
+// The live feed of agent steps (Server-Sent Events).
+app.get('/api/activity', streamActivity);
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -65,7 +71,8 @@ app.get('/api/queue', async (req, res, next) => {
       }
     }
     if (!cachedQueue || fresh) {
-      building ??= buildQueue(fresh).finally(() => {
+      // Queue reviews carry no visitor input, so every open tab sees their steps.
+      building ??= asShared(() => buildQueue(fresh)).finally(() => {
         building = null;
       });
       cachedQueue = await building;

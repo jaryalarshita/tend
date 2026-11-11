@@ -6,6 +6,7 @@
 // PayPal Checkout, then captured here.
 import { createHash, randomUUID } from 'node:crypto';
 import { ACTION_LABELS, ACTIONS, NOT_APPROVABLE, priceAction } from '../shared/actions.js';
+import { step as logStep } from './activity.js';
 import { findDone, record, workKey } from './history.js';
 import { captureOrder, createOrder, paypalRequest } from './paypal.js';
 import { collectItems } from './sources.js';
@@ -61,6 +62,7 @@ export async function preparePlan(requests) {
   if (!Array.isArray(requests) || requests.length === 0) throw Object.assign(new Error('Nothing approved to carry out'), { status: 400 });
   if (requests.length > MAX_STEPS) throw Object.assign(new Error(`At most ${MAX_STEPS} rows at a time`), { status: 400 });
 
+  logStep('action', `Re-checking ${requests.length} approved row${requests.length === 1 ? '' : 's'} against PayPal`, 'start');
   const { items, errors } = await collectItems();
   const byId = new Map(items.map((item) => [item.id, item]));
   const steps = [];
@@ -124,6 +126,7 @@ export async function preparePlan(requests) {
     Math.round(steps.filter((s) => s.kind === kind && (!actions || actions.includes(s.action))).reduce((t, s) => t + s.amount * 100, 0)) / 100;
   const planId = randomUUID();
   plans.set(planId, { createdAt: Date.now(), steps, used: false });
+  logStep('action', `Plan ready: ${steps.length} to carry out${rejected.length ? `, ${rejected.length} left out` : ''}. Waiting for you to confirm`);
 
   return {
     planId,
@@ -217,14 +220,18 @@ export async function executePlan(planId) {
 
   const results = [];
   // One at a time: easier on PayPal's rate limits, and results arrive in a clear order.
+  logStep('action', 'Confirmed. Carrying out the plan in PayPal', 'start');
   for (const step of plan.steps.filter((s) => s.kind !== 'checkout')) {
+    logStep('action', `${step.label}…`, 'start');
     try {
       const outcome = await runStep(step);
       await record({ key: step.key, itemId: step.itemId, action: step.action, amount: step.amount, status: 'done', ...outcome });
-      results.push({ id: step.itemId, status: 'done', ...outcome });
+      results.push({ id: step.itemId, status: 'done', sentToPayPal: step.kind === 'paypal', ...outcome });
+      logStep('action', `${step.customer}: ${outcome.detail}`, 'ok', outcome.paypalRef && `PayPal ref ${outcome.paypalRef}`);
     } catch (err) {
       await record({ key: step.key, itemId: step.itemId, action: step.action, amount: step.amount, status: 'failed', detail: err.message });
       results.push({ id: step.itemId, status: 'failed', detail: err.message });
+      logStep('action', `${step.customer}: failed`, 'fail', err.message);
     }
   }
 
@@ -239,13 +246,18 @@ export async function executePlan(planId) {
         cart.rows.map((row) => ({ name: `${row.product} (${row.supplier})`, quantity: row.quantity, unitPrice: row.unitPrice })),
       );
       orders.set(order.id, { steps: reorders, total: cart.total });
+      logStep('action', `Created a PayPal order for ${reorders.length} reorder${reorders.length === 1 ? '' : 's'} ($${cart.total.toFixed(2)}). Waiting for payment`);
       checkout = { orderId: order.id, total: cart.total, items: cart.rows.length };
       for (const step of reorders) results.push({ id: step.itemId, status: 'awaiting_payment', detail: 'Waiting for you to pay with PayPal' });
     } catch (err) {
       for (const step of reorders) results.push({ id: step.itemId, status: 'failed', detail: err.message });
+      logStep('action', 'Could not create the reorder payment', 'fail', err.message);
     }
   }
 
+  const done = results.filter((r) => r.status === 'done').length;
+  const failed = results.filter((r) => r.status === 'failed').length;
+  logStep('done', `Carried out: ${done} done${failed ? `, ${failed} failed` : ''}${checkout ? ', reorders waiting for payment' : ''}`, failed ? 'warn' : 'ok');
   return { results, checkout };
 }
 
@@ -258,16 +270,18 @@ export async function captureReorder(orderId) {
   try {
     const capture = await captureOrder(orderId);
     if (capture.status !== 'COMPLETED') throw new Error(`PayPal says the payment is ${capture.status}`);
+    logStep('done', `Reorder payment of $${pending.total.toFixed(2)} confirmed by PayPal`, 'ok', `Capture ${capture.captureId}`);
     const results = [];
     for (const step of pending.steps) {
       const detail = `Paid · ordered ${step.quantity} packs`;
       await record({ key: step.key, itemId: step.itemId, action: step.action, amount: step.amount, status: 'done', detail, paypalRef: capture.captureId });
-      results.push({ id: step.itemId, status: 'done', detail, paypalRef: capture.captureId });
+      results.push({ id: step.itemId, status: 'done', sentToPayPal: true, detail, paypalRef: capture.captureId });
     }
     return { results, captureId: capture.captureId, amount: capture.amount };
   } catch (err) {
     // Let the owner try paying again with the same order.
     orders.set(orderId, pending);
+    logStep('action', 'Reorder payment not completed', 'fail', err.message);
     throw err;
   }
 }
