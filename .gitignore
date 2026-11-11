@@ -12,3 +12,6 @@ dist/
 
 # macOS
 .DS_Store
+
+# Gemini's last good review, a local cache for when every model is busy
+server/data/last-review.json

@@ -16,12 +16,14 @@ let building = null;
 async function buildQueue() {
   const startedAt = Date.now();
   const { items, errors } = await collectItems();
-  const { rows, model, aiError } = await proposeActions(items);
+  const { rows, model, aiError, fallbackFrom, cachedReviewAt } = await proposeActions(items);
   return {
     generatedAt: new Date().toISOString(),
     tookMs: Date.now() - startedAt,
     model,
     aiError,
+    fallbackFrom,
+    cachedReviewAt,
     sourceErrors: errors,
     rows,
   };

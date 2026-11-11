@@ -2,12 +2,23 @@
 // finalize() below checks each proposal in code, and every amount comes from PayPal or
 // the catalog. The one exception is a partial refund or dispute offer, which Gemini may
 // size, but which is capped at what PayPal says was paid and shown to the owner first.
+import { readFile, writeFile } from 'node:fs/promises';
 import { GoogleGenAI } from '@google/genai';
 import { ACTIONS, priceAction } from '../shared/actions.js';
 
-// gemini-3.8-flash is listed but timed out on every call (Nov 2026), so 3.5 Flash it is.
-const DEFAULT_MODEL = 'gemini-3.5-flash';
-const REQUEST_TIMEOUT_MS = 45_000;
+// Tried in order until one answers. Gemini models hit "high demand" (503) spikes, so a
+// busy model hands over to the next instead of failing the queue. 2.5 Flash is a
+// different family, in case the whole 3.x line is busy. gemini-3.8-flash is listed but
+// timed out on every call (Nov 2026), so it is left out. GEMINI_MODEL, if set, goes first.
+const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
+// A full review normally takes 10-40 s. Past this, the model is treated as busy.
+const REQUEST_TIMEOUT_MS = 50_000;
+// The whole review, across every model tried, never takes longer than this.
+const TOTAL_BUDGET_MS = 90_000;
+// Below this, there isn't time for another model to finish, so stop trying.
+const MIN_ATTEMPT_MS = 10_000;
+// If every model is busy, Gemini's last good review is reused for items that haven't changed.
+const LAST_REVIEW_FILE = new URL('./data/last-review.json', import.meta.url);
 
 const SHOP_POLICY = `You are Tend, the back-office assistant for Little Lantern Gifts, a small holiday gift shop that sells on PayPal.
 For each item, propose exactly one action. The owner approves or rejects every proposal before anything happens, so be decisive and explain why in one or two plain sentences.
@@ -56,7 +67,10 @@ let client = null;
 const getClient = () => {
   client ??= new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: { timeout: REQUEST_TIMEOUT_MS, retryOptions: { attempts: 3, initialDelay: 1 } },
+    // v1beta is needed for JSON output on 2.5 Flash. No SDK retries: a busy model
+    // is skipped for the next one, which is faster than retrying the same one.
+    apiVersion: 'v1beta',
+    httpOptions: { timeout: REQUEST_TIMEOUT_MS, retryOptions: { attempts: 1 } },
   });
   return client;
 };
@@ -109,8 +123,7 @@ export function finalize(item, proposal, source) {
   };
 }
 
-async function askGemini(items) {
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+async function askGemini(items, model, timeoutMs) {
   const response = await getClient().models.generateContent({
     model,
     contents: JSON.stringify({
@@ -123,34 +136,115 @@ async function askGemini(items) {
       responseMimeType: 'application/json',
       responseJsonSchema: RESPONSE_SCHEMA,
       temperature: 0.2,
-      thinkingConfig: { thinkingLevel: 'LOW' },
+      httpOptions: { timeout: timeoutMs },
+      // Gemini 3 takes a thinking level; 2.5 takes a token budget.
+      thinkingConfig: model.startsWith('gemini-2') ? { thinkingBudget: 1024 } : { thinkingLevel: 'LOW' },
     },
   });
-  return { model, proposals: JSON.parse(response.text).proposals ?? [] };
+  return JSON.parse(response.text).proposals ?? [];
+}
+
+function describeFailure(err) {
+  if (err.status === 503) return 'busy (high demand)';
+  if (err.status === 429) return 'rate limit reached';
+  if (err.status === 504 || err.name === 'AbortError' || /timed? ?out|deadline/i.test(err.message)) return 'timed out';
+  // The SDK puts Google's JSON error body in the message; keep just the readable part.
+  let message = String(err.message ?? err);
+  try {
+    message = JSON.parse(message).error?.message ?? message;
+  } catch {
+    // Not JSON, keep as is.
+  }
+  return message.slice(0, 120);
+}
+
+// Proposals are only reused while the item they were made for is unchanged.
+function fingerprint(item) {
+  const e = item.evidence;
+  return [item.type, item.amount, e.status, e.captureStatus, e.stage, e.onHand, e.messages?.length, e.lastContactedDaysAgo]
+    .map((part) => part ?? '')
+    .join('|');
+}
+
+let lastReview = null; // { reviewedAt, model, proposals: { [itemId]: { fingerprint, proposal } } }
+
+async function loadLastReview() {
+  if (lastReview) return lastReview;
+  try {
+    lastReview = JSON.parse(await readFile(LAST_REVIEW_FILE, 'utf8'));
+  } catch {
+    lastReview = null;
+  }
+  return lastReview;
+}
+
+async function saveLastReview(items, byId, model) {
+  const proposals = {};
+  for (const item of items) {
+    const proposal = byId.get(item.id);
+    if (proposal) proposals[item.id] = { fingerprint: fingerprint(item), proposal };
+  }
+  lastReview = { reviewedAt: new Date().toISOString(), model, proposals };
+  await writeFile(LAST_REVIEW_FILE, `${JSON.stringify(lastReview, null, 2)}\n`).catch(() => {});
 }
 
 // Reviews every item in one Gemini call (cheaper and kinder to rate limits than one
-// call per item). If Gemini fails, the whole queue falls back to the rules.
+// call per item), trying each model in turn. If all are busy, the last good review
+// covers unchanged items and simple rules cover the rest.
 export async function proposeActions(items) {
-  let byId = new Map();
+  const models = [...new Set([process.env.GEMINI_MODEL, ...FALLBACK_MODELS].filter(Boolean))];
+  const failures = [];
+  let byId = null;
   let model = null;
-  let aiError = null;
 
   if (!process.env.GEMINI_API_KEY) {
-    aiError = 'GEMINI_API_KEY is not set';
+    failures.push('GEMINI_API_KEY is not set');
   } else if (items.length > 0) {
-    try {
-      const result = await askGemini(items);
-      model = result.model;
-      byId = new Map(result.proposals.map((proposal) => [proposal.itemId, proposal]));
-    } catch (err) {
-      aiError = err.status === 429 ? 'Gemini rate limit reached' : `Gemini failed: ${err.message}`;
+    const deadline = Date.now() + TOTAL_BUDGET_MS;
+    for (const candidate of models) {
+      const timeLeft = deadline - Date.now();
+      if (timeLeft < MIN_ATTEMPT_MS) {
+        failures.push(`${candidate} skipped (out of time)`);
+        continue;
+      }
+      try {
+        const proposals = await askGemini(items, candidate, Math.min(REQUEST_TIMEOUT_MS, timeLeft));
+        byId = new Map(proposals.map((proposal) => [proposal.itemId, proposal]));
+        model = candidate;
+        break;
+      } catch (err) {
+        failures.push(`${candidate} ${describeFailure(err)}`);
+        console.warn(`Gemini ${candidate} failed: ${err.message}`);
+      }
     }
   }
 
-  const rows = items.map((item) => {
-    const proposal = byId.get(item.id);
-    return proposal ? finalize(item, proposal, 'gemini') : finalize(item, ruleProposal(item), 'rules');
-  });
-  return { rows, model, aiError };
+  let cachedReviewAt = null;
+  let rows;
+  if (byId) {
+    await saveLastReview(items, byId, model);
+    rows = items.map((item) => {
+      const proposal = byId.get(item.id);
+      return proposal ? finalize(item, proposal, 'gemini') : finalize(item, ruleProposal(item), 'rules');
+    });
+  } else {
+    const previous = await loadLastReview();
+    rows = items.map((item) => {
+      const saved = previous?.proposals?.[item.id];
+      if (saved && saved.fingerprint === fingerprint(item)) {
+        cachedReviewAt = previous.reviewedAt;
+        return finalize(item, saved.proposal, 'cached');
+      }
+      return finalize(item, ruleProposal(item), 'rules');
+    });
+  }
+
+  return {
+    rows,
+    model: model ?? (cachedReviewAt ? lastReview.model : null),
+    // Set when a fallback model answered, so the UI can say so.
+    fallbackFrom: model && failures.length ? failures : null,
+    aiError: byId ? null : failures.join('; ') || null,
+    cachedReviewAt,
+  };
 }
