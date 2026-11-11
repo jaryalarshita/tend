@@ -13,7 +13,9 @@ const REMINDERS_FILE = new URL('./data/reminders.json', import.meta.url);
 const DAY_MS = 86_400_000;
 const UNPAID_INVOICE = new Set(['SENT', 'UNPAID', 'PARTIALLY_PAID']);
 const REFUNDABLE_CAPTURE = new Set(['COMPLETED', 'PARTIALLY_REFUNDED']);
-const OPEN_DISPUTE = new Set(['OPEN', 'WAITING_FOR_SELLER_RESPONSE', 'WAITING_FOR_BUYER_RESPONSE', 'UNDER_REVIEW']);
+// Disputes the seller can still act on. UNDER_REVIEW (PayPal deciding, e.g. after a claim
+// was accepted) and RESOLVED leave nothing for the owner to do, so they stay out.
+const OPEN_DISPUTE = new Set(['OPEN', 'WAITING_FOR_SELLER_RESPONSE', 'WAITING_FOR_BUYER_RESPONSE']);
 
 const daysSince = (time, now) => Math.floor((now - new Date(time).getTime()) / DAY_MS);
 const toNumber = (money) => Number(money?.value ?? 0);
@@ -201,11 +203,14 @@ const FOUND = {
 };
 const FOUND_NAME = { overdue_invoice: 'invoices', refund_request: 'sales', dispute: 'disputes', low_stock: 'the stock list' };
 
-// Once Tend has settled a refund request (refunded or declined) it leaves the queue, and
-// so does stock that was reordered or skipped in the last 2 weeks. Invoices and disputes
-// stay, since they may need a follow-up, but carry what Tend last did as evidence.
+// Once Tend has settled a refund request (refunded or declined) or accepted a dispute's
+// claim, it leaves the queue, and so does stock reordered or skipped in the last 2 weeks.
+// Invoices and other disputes stay, since they may need a follow-up, but carry what Tend
+// last did as evidence.
 const SETTLED = {
   refund_request: () => true,
+  // Accepting the claim ends a dispute; a reply or an offer may still need a follow-up.
+  dispute: (entry) => entry.action === 'accept_claim',
   low_stock: (_entry, days) => days < 14,
 };
 
