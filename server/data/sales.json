@@ -13,6 +13,7 @@
         "value": "48.00"
       },
       "paidAt": "2026-11-11T11:32:11Z",
+      "orderedAt": "2026-11-06T11:31:39.516Z",
       "shipping": {
         "status": "delivered",
         "deliveredAt": "2026-11-09T11:31:39.516Z"
@@ -33,6 +34,7 @@
         "value": "32.00"
       },
       "paidAt": "2026-11-11T11:32:16Z",
+      "orderedAt": "2026-11-04T11:31:39.516Z",
       "shipping": {
         "status": "delivered",
         "deliveredAt": "2026-11-07T11:31:39.516Z"
@@ -53,6 +55,7 @@
         "value": "120.00"
       },
       "paidAt": "2026-11-11T11:32:20Z",
+      "orderedAt": "2026-11-02T11:31:39.516Z",
       "shipping": {
         "status": "delivered",
         "deliveredAt": "2026-11-05T11:31:39.516Z"
@@ -73,6 +76,7 @@
         "value": "210.00"
       },
       "paidAt": "2026-11-11T11:32:24Z",
+      "orderedAt": "2026-10-30T11:31:39.516Z",
       "shipping": {
         "status": "delivered",
         "deliveredAt": "2026-11-02T11:31:39.516Z"
@@ -93,6 +97,7 @@
         "value": "26.00"
       },
       "paidAt": "2026-11-11T11:32:28Z",
+      "orderedAt": "2026-11-10T11:31:39.516Z",
       "shipping": {
         "status": "in_transit"
       },
@@ -109,6 +114,7 @@
         "value": "64.00"
       },
       "paidAt": "2026-11-11T11:32:32Z",
+      "orderedAt": "2026-11-05T11:31:39.516Z",
       "shipping": {
         "status": "delivered",
         "deliveredAt": "2026-11-08T11:31:39.516Z"

@@ -13,6 +13,7 @@ import { paypalRequest } from '../server/paypal.js';
 dotenv.config({ quiet: true });
 
 const SALES_FILE = new URL('../server/data/sales.json', import.meta.url);
+const REMINDERS_FILE = new URL('../server/data/reminders.json', import.meta.url);
 const INVOICE_PREFIX = 'TEND-';
 const CURRENCY = 'USD';
 // PayPal's sandbox test Visa. Card orders capture instantly, with no buyer login.
@@ -171,6 +172,9 @@ async function resetDemoInvoices() {
   }
 }
 
+// Invoice ID -> time of Tend's last reminder. The demo story says the reminder went out yesterday.
+const reminders = {};
+
 async function createInvoice(spec, index) {
   const invoiceNumber = `${INVOICE_PREFIX}${runId}-${String(index + 1).padStart(2, '0')}`;
   // Invoices are dated 30 days before they fall due, so overdue ones look real.
@@ -211,6 +215,7 @@ async function createInvoice(spec, index) {
         send_to_recipient: true,
       },
     });
+    reminders[id] = timeOffset(1);
   }
   const total = spec.items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0) / 100;
   if (spec.paid) {
@@ -257,6 +262,9 @@ async function createSale(spec, index) {
     item: spec.item,
     amount: money(spec.amount),
     paidAt: capture.create_time ?? today.toISOString(),
+    // The sandbox capture is made today, so the story's order date is kept separately:
+    // three days before delivery, or yesterday for parcels still in transit.
+    orderedAt: timeOffset(spec.shipping.status === 'delivered' ? spec.shipping.daysAgo + 3 : 1),
     shipping: {
       status: spec.shipping.status,
       ...(spec.shipping.status === 'delivered' && { deliveredAt: timeOffset(spec.shipping.daysAgo) }),
@@ -278,8 +286,9 @@ async function main() {
   const sales = [];
   for (const [index, spec] of SALES.entries()) sales.push(await createSale(spec, index));
 
+  await writeFile(REMINDERS_FILE, `${JSON.stringify(reminders, null, 2)}\n`);
   await writeFile(SALES_FILE, `${JSON.stringify({ shop: 'Little Lantern Gifts', createdAt: today.toISOString(), sales }, null, 2)}\n`);
-  console.log(`\nSaved ${sales.length} sales to server/data/sales.json`);
+  console.log(`\nSaved ${sales.length} sales to server/data/sales.json and reminder history to server/data/reminders.json`);
 }
 
 main().catch((err) => {
