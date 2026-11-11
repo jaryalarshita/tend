@@ -12,7 +12,8 @@
     "dev": "concurrently -n api,web -c blue,green \"node --watch server/index.js\" \"vite\"",
     "build": "vite build",
     "start": "node server/index.js",
-    "seed": "node scripts/seed-sandbox.js"
+    "seed": "node scripts/seed-sandbox.js",
+    "snapshot": "node scripts/save-review-snapshot.js"
   },
   "dependencies": {
     "@google/genai": "^3.1.0",
