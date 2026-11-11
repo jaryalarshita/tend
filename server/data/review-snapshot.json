@@ -1,6 +1,7 @@
 {
-  "reviewedAt": "2026-11-11T14:00:51.442Z",
-  "model": "gemini-3-flash-preview",
+  "reviewedAt": "2026-11-11T15:43:31.063Z",
+  "model": "gemini-3.5-flash",
+  "note": "Committed snapshot of a Gemini review of the demo items. Used when no fresh review exists (e.g. a Render cold start), for items whose evidence is unchanged.",
   "proposals": {
     "invoice:INV2-BTDS-W9FR-HRPK-RU84": {
       "fingerprint": "overdue_invoice|78|SENT|||||1",
@@ -82,24 +83,16 @@
         "customerMessage": "We cannot offer a refund as the item has already been used and our policy does not cover price matching."
       }
     },
-    "dispute:PP-R-KQF-10198859": {
-      "fingerprint": "dispute|25|WAITING_FOR_BUYER_RESPONSE||INQUIRY||2|",
+    "dispute:PP-R-MXX-10198953": {
+      "fingerprint": "dispute|65|WAITING_FOR_SELLER_RESPONSE||INQUIRY||1|",
       "proposal": {
-        "itemId": "dispute:PP-R-KQF-10198859",
+        "itemId": "dispute:PP-R-MXX-10198953",
         "action": "send_message",
-        "risk": "low",
-        "reason": "The dispute is in the inquiry stage with an unclear message from the buyer. Asking for clarification is the first step.",
-        "customerMessage": "Hello, we received your inquiry but are unsure of the issue. Could you please provide more details so we can assist you?"
-      }
-    },
-    "reorder:gb-02": {
-      "fingerprint": "low_stock|26||||1||",
-      "proposal": {
-        "itemId": "reorder:gb-02",
-        "action": "reorder",
-        "quantity": 5,
-        "risk": "low",
-        "reason": "Stock is well below the reorder point. Ordering 5 packs to cover 4 weeks of use plus the reorder point."
+        "refundAmount": null,
+        "quantity": null,
+        "risk": "medium",
+        "reason": "The dispute is in the INQUIRY stage. Per policy, we reply to the buyer first to provide assistance and address the missing delivery before escalating or settling.",
+        "customerMessage": "Hello John, thank you for reaching out. We are looking into the status of your holiday wreath shipment with the carrier and will follow up shortly with an update."
       }
     },
     "reorder:cn-01": {
@@ -131,7 +124,16 @@
         "risk": "low",
         "reason": "Stock is below the reorder point. Ordering 3 packs to cover 4 weeks of use plus the reorder point."
       }
+    },
+    "reorder:gb-02": {
+      "fingerprint": "low_stock|26||||1||",
+      "proposal": {
+        "itemId": "reorder:gb-02",
+        "action": "reorder",
+        "quantity": 5,
+        "risk": "low",
+        "reason": "Stock is well below the reorder point. Ordering 5 packs to cover 4 weeks of use plus the reorder point."
+      }
     }
-  },
-  "note": "Committed snapshot of a Gemini review of the demo items. Used when no fresh review exists (e.g. a Render cold start), for items whose evidence is unchanged."
+  }
 }
