@@ -12,6 +12,9 @@ const PER_MODEL_MS = 50_000;
 const TOTAL_BUDGET_MS = 90_000;
 // If every model is busy, Gemini's last good review is reused for items that haven't changed.
 const LAST_REVIEW_FILE = new URL('./data/last-review.json', import.meta.url);
+// A committed review of the demo items, used when there is no saved review yet (a fresh
+// clone, or a Render cold start, which wipes files). Items still have to match exactly.
+const SNAPSHOT_FILE = new URL('./data/review-snapshot.json', import.meta.url);
 // A saved review this recent is reused on page load when no item has changed, so restarts
 // and reloads don't spend Gemini credits. "Ask the AI again" always asks afresh.
 const REUSE_REVIEW_MS = 6 * 60 * 60 * 1000;
@@ -137,7 +140,11 @@ async function loadLastReview() {
   try {
     lastReview = JSON.parse(await readFile(LAST_REVIEW_FILE, 'utf8'));
   } catch {
-    lastReview = null;
+    try {
+      lastReview = { ...JSON.parse(await readFile(SNAPSHOT_FILE, 'utf8')), snapshot: true };
+    } catch {
+      lastReview = null;
+    }
   }
   return lastReview;
 }
@@ -164,7 +171,8 @@ export async function proposeActions(items, { reuseSaved = false } = {}) {
   let model = null;
 
   const saved = await loadLastReview();
-  const recent = saved && Date.now() - new Date(saved.reviewedAt).getTime() <= REUSE_REVIEW_MS;
+  // The snapshot has no age limit: the item fingerprints alone decide what still matches.
+  const recent = saved && (saved.snapshot || Date.now() - new Date(saved.reviewedAt).getTime() <= REUSE_REVIEW_MS);
   const unchanged = (item) => saved?.proposals?.[item.id]?.fingerprint === fingerprint(item);
   const reusable = reuseSaved && recent ? items.filter(unchanged) : [];
   const toAsk = items.filter((item) => !reusable.includes(item));

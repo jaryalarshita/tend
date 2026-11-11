@@ -5,6 +5,7 @@ import express from 'express';
 import { proposeActions } from './agent.js';
 import { interpretCommand } from './commands.js';
 import { captureReorder, executePlan, preparePlan } from './executor.js';
+import { freshReviewWait, limitCommands, passcodeRequired, requirePasscode } from './guard.js';
 import { isConfigured as isPayPalConfigured } from './paypal.js';
 import { collectItems } from './sources.js';
 
@@ -40,6 +41,8 @@ const app = express();
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const port = process.env.PORT || 3001;
 
+// Render sits behind a proxy; this makes req.ip the visitor's address for the rate limits.
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '200kb' }));
 
 app.get('/api/health', (_req, res) => {
@@ -47,12 +50,20 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     paypalConfigured: isPayPalConfigured(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    passcodeRequired: passcodeRequired(),
   });
 });
 
 app.get('/api/queue', async (req, res, next) => {
   try {
     const fresh = req.query.refresh === '1';
+    // A fresh review sends everything to Gemini, so on a public link it's limited.
+    if (fresh && !building) {
+      const wait = freshReviewWait();
+      if (wait) {
+        return res.status(429).json({ error: `The AI reviewed the queue moments ago. Try again in ${wait} s.` });
+      }
+    }
     if (!cachedQueue || fresh) {
       building ??= buildQueue(fresh).finally(() => {
         building = null;
@@ -67,7 +78,7 @@ app.get('/api/queue', async (req, res, next) => {
 
 // Typed commands that drive the grid. Gemini returns grid operations only; the browser
 // applies them, and nothing here reaches PayPal.
-app.post('/api/command', async (req, res, next) => {
+app.post('/api/command', limitCommands, async (req, res, next) => {
   const { text, rows } = req.body ?? {};
   if (typeof text !== 'string' || !text.trim() || !Array.isArray(rows)) {
     return res.status(400).json({ error: 'Send { text, rows }' });
@@ -93,7 +104,7 @@ app.post('/api/execute/plan', async (req, res, next) => {
   }
 });
 
-app.post('/api/execute', async (req, res, next) => {
+app.post('/api/execute', requirePasscode, async (req, res, next) => {
   try {
     const result = await executePlan(req.body?.planId);
     // PayPal has changed, so the next queue load rebuilds (reusing the review where it can).
