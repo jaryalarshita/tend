@@ -57,7 +57,12 @@ export default function DetailPanel({ row, onEdit, setDecision, onClose }) {
         </section>
 
         <section>
-          <h3>Why {row.source === 'rules' ? '(rule-based, AI unavailable)' : `(${row.risk} risk)`}</h3>
+          <h3>
+            Why{' '}
+            {row.source === 'rules'
+              ? '(rule-based, AI unavailable)'
+              : `(${row.risk} risk${row.source === 'cached' ? ', from an earlier AI review' : ''})`}
+          </h3>
           <p>{row.reason}</p>
           {row.warnings?.map((warning) => (
             <p key={warning} className="warning">

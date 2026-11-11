@@ -89,7 +89,22 @@ function AmountCell({ value, data, node }) {
   if (node.rowPinned) return <strong>{money(value)}</strong>;
   if (value == null) return <span className="set-amount">Set amount</span>;
   const editable = AMOUNT_EDITABLE.has(data.action);
-  return <span className={editable ? 'editable-value' : ''}>{value === 0 ? '—' : money(value)}</span>;
+  return (
+    <span className={editable ? 'editable-value' : ''} title={editable ? 'Double-click to change' : undefined}>
+      {value === 0 ? '—' : money(value)}
+    </span>
+  );
+}
+
+// The underline goes on the text, not the cell: borders on AG Grid's absolutely
+// positioned cells drift and repaint when the page is zoomed.
+function QuantityCell({ value, data, node }) {
+  if (node.rowPinned || value == null) return null;
+  return (
+    <span className={data.action === 'reorder' ? 'editable-value' : ''} title="Double-click to change">
+      {value}
+    </span>
+  );
 }
 
 function ReasonCell({ data, node }) {
@@ -97,6 +112,11 @@ function ReasonCell({ data, node }) {
   return (
     <div className="reason">
       {data.source === 'rules' && <span className="tag">Rules</span>}
+      {data.source === 'cached' && (
+        <span className="tag" title="Gemini was busy, so this is its earlier review of the same item.">
+          Earlier
+        </span>
+      )}
       {data.warnings?.length > 0 && <span className="warn" title={data.warnings.join('\n')}>⚠</span>}
       <span>{data.reason}</span>
     </div>
@@ -139,7 +159,8 @@ const columnDefs = [
   },
   {
     field: 'action',
-    headerName: 'Action',
+    headerName: 'Action ✎',
+    headerTooltip: 'Pick a different action from the menu. Only actions that fit the row are listed.',
     width: 156,
     // Shown and filtered by its label ("Partial refund"), stored as the action key.
     refData: ACTION_LABELS,
@@ -148,7 +169,8 @@ const columnDefs = [
   },
   {
     field: 'proposedAmount',
-    headerName: 'Amount',
+    headerName: 'Amount ✎',
+    headerTooltip: 'Editable for partial refunds and dispute offers, up to what PayPal says was paid.',
     width: 114,
     type: 'rightAligned',
     editable: ({ data, node }) => !node.rowPinned && AMOUNT_EDITABLE.has(data.action),
@@ -160,13 +182,14 @@ const columnDefs = [
   },
   {
     field: 'quantity',
-    headerName: 'Qty',
-    width: 60,
+    width: 72,
     type: 'rightAligned',
     editable: ({ data, node }) => !node.rowPinned && data.action === 'reorder',
     cellEditor: 'agNumberCellEditor',
     cellEditorParams: { min: 1, precision: 0 },
-    cellClass: ({ data, node }) => (!node.rowPinned && data?.action === 'reorder' ? 'editable-value' : ''),
+    cellRenderer: QuantityCell,
+    headerName: 'Qty ✎',
+    headerTooltip: 'Editable for reorders. The price always comes from the catalog.',
   },
   { field: 'risk', width: 96, cellRenderer: RiskCell, filter: 'agTextColumnFilter' },
   {
@@ -228,7 +251,11 @@ const QueueGrid = forwardRef(function QueueGrid(
       singleClickEdit={false}
       tooltipShowDelay={400}
       domLayout="autoHeight"
-      animateRows
+      // Fixed heights and no row animation: measured heights and 0.4 s row slides made
+      // some rows trail behind when the page was zoomed.
+      rowHeight={40}
+      headerHeight={42}
+      animateRows={false}
     />
   );
 });

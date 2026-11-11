@@ -111,6 +111,10 @@ button.ghost {
   background: var(--amber-soft);
   color: var(--amber);
 }
+.info-banner {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
 .error-banner {
   background: var(--red-soft);
   color: var(--red);
@@ -220,11 +224,20 @@ button.ghost {
 .row-approved {
   background-color: var(--green-soft) !important;
 }
+/* Greyed with colour, not opacity: opacity puts each row on its own layer, which can
+   repaint late when the page is zoomed. */
 .row-rejected {
-  opacity: 0.5;
+  background-color: #f4f4f2 !important;
 }
-.row-rejected .ag-cell:not(.ag-cell[col-id='decision']) {
+.row-rejected .ag-cell:not([col-id='decision']) {
+  color: #9aa19d;
   text-decoration: line-through;
+}
+.row-rejected .badge,
+.row-rejected .pill,
+.row-rejected .action-select {
+  filter: grayscale(1);
+  color: #9aa19d;
 }
 .decision {
   display: flex;
@@ -337,6 +350,8 @@ button.ghost {
 }
 .tag {
   flex: none;
+  white-space: nowrap;
+  line-height: 18px;
   font-size: 11px;
   font-weight: 600;
   padding: 0 6px;

@@ -36,6 +36,22 @@ function applyEdit(row, field, value) {
   return edited;
 }
 
+const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+// Which model reviewed the queue, and whether a fallback or an earlier review was used.
+function ReviewStatus({ queue }) {
+  if (queue.cachedReviewAt) return <>Showing the {timeOf(queue.cachedReviewAt)} review by {queue.model}</>;
+  if (!queue.model) return <>Rule-based proposals · {timeOf(queue.generatedAt)}</>;
+  const busy = queue.fallbackFrom?.map((failure) => failure.split(' ')[0]).join(', ');
+  return (
+    <>
+      Reviewed by {queue.model}
+      {busy && <span title={queue.fallbackFrom.join('\n')}> (backup: {busy} unavailable)</span>} in{' '}
+      {(queue.tookMs / 1000).toFixed(0)}s · {timeOf(queue.generatedAt)}
+    </>
+  );
+}
+
 const sumOf = (rows, key) => Math.round(rows.reduce((total, row) => total + (row[key] ?? 0) * 100, 0)) / 100;
 
 function Summary({ rows }) {
@@ -166,18 +182,20 @@ export default function App() {
           </div>
         </div>
         <div className="status muted">
-          {queue && !loading && (
-            <>
-              Reviewed by {queue.model ?? 'rules only'} in {(queue.tookMs / 1000).toFixed(0)}s ·{' '}
-              {new Date(queue.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </>
-          )}
+          {queue && !loading && <ReviewStatus queue={queue} />}
         </div>
       </header>
 
-      {queue?.aiError && (
+      {queue?.aiError && queue.cachedReviewAt && (
+        <p className="banner info-banner" role="status">
+          Gemini is busy right now, so this is its last review, from {timeOf(queue.cachedReviewAt)}. Use “Ask the AI
+          again” to retry. Anything new since then gets a simple rule-based proposal.
+        </p>
+      )}
+      {queue?.aiError && !queue.cachedReviewAt && (
         <p className="banner warn-banner" role="status">
-          AI unavailable ({queue.aiError}). Showing simple rule-based proposals; refunds and disputes need your review.
+          Gemini is unavailable ({queue.aiError}). Showing simple rule-based proposals; refunds and disputes need your
+          review. Use “Ask the AI again” to retry.
         </p>
       )}
       {queue?.sourceErrors?.map((sourceError) => (
