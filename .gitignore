@@ -15,3 +15,5 @@ dist/
 
 # Gemini's last good review, a local cache for when every model is busy
 server/data/last-review.json
+# What Tend has carried out in this sandbox
+server/data/history.json

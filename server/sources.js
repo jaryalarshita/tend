@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import catalog from './data/catalog.json' with { type: 'json' };
 import inventory from './data/inventory.json' with { type: 'json' };
+import { doneByItem } from './history.js';
 import { paypalRequest } from './paypal.js';
 
 const SALES_FILE = new URL('./data/sales.json', import.meta.url);
@@ -177,5 +178,34 @@ export async function collectItems(now = Date.now()) {
     if (result.status === 'fulfilled') items.push(...result.value);
     else errors.push({ source: type, message: result.reason?.message ?? String(result.reason) });
   });
-  return { items, errors };
+  return { items: await applyHistory(items, now), errors };
+}
+
+// Once Tend has settled a refund request (refunded or declined) it leaves the queue, and
+// so does stock that was reordered or skipped in the last 2 weeks. Invoices and disputes
+// stay, since they may need a follow-up, but carry what Tend last did as evidence.
+const SETTLED = {
+  refund_request: () => true,
+  low_stock: (_entry, days) => days < 14,
+};
+
+async function applyHistory(items, now) {
+  const done = await doneByItem();
+  return items.flatMap((item) => {
+    const entries = done.get(item.id);
+    if (!entries) return [item];
+    const latest = entries.at(-1);
+    const days = daysSince(latest.at, now);
+    if (SETTLED[item.type]?.(latest, days)) return [];
+
+    const evidence = { ...item.evidence, lastTendAction: latest.action, lastTendActionDaysAgo: days };
+    // A reminder Tend sent counts as contact, so the AI won't remind again too soon.
+    const reminder = entries.findLast((entry) => entry.action === 'send_reminder');
+    if (item.type === 'overdue_invoice' && reminder) {
+      const reminderDays = daysSince(reminder.at, now);
+      evidence.lastContactedDaysAgo = Math.min(evidence.lastContactedDaysAgo ?? reminderDays, reminderDays);
+      evidence.remindedByTend = true;
+    }
+    return [{ ...item, evidence }];
+  });
 }

@@ -72,11 +72,13 @@ async function getAccessToken() {
 
 // One way in to every PayPal REST call. `action` finishes the sentence
 // "PayPal could not ..." so errors read well in the UI.
-export async function paypalRequest(method, path, { body, action = 'complete the request' } = {}) {
+// `requestId` lets a caller make an action idempotent across separate calls too: the
+// same ID for the same refund means PayPal performs it once, however often it's sent.
+export async function paypalRequest(method, path, { body, action = 'complete the request', requestId: fixedId } = {}) {
   const accessToken = await getAccessToken();
   // The same request ID is sent on every retry, so PayPal treats a retried POST as the
   // same request and can never refund or charge twice.
-  const requestId = randomUUID();
+  const requestId = fixedId ?? randomUUID();
 
   for (let attempt = 1; ; attempt++) {
     let res;

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { proposeActions } from './agent.js';
 import { interpretCommand } from './commands.js';
+import { captureReorder, executePlan, preparePlan } from './executor.js';
 import { isConfigured as isPayPalConfigured } from './paypal.js';
 import { collectItems } from './sources.js';
 
@@ -18,7 +19,7 @@ let building = null;
 async function buildQueue(fresh) {
   const startedAt = Date.now();
   const { items, errors } = await collectItems();
-  const { rows, model, aiError, fallbackFrom, cachedReviewAt, reusedReviewAt } = await proposeActions(items, {
+  const { rows, model, aiError, fallbackFrom, cachedReviewAt, reusedReviewAt, askedCount } = await proposeActions(items, {
     reuseSaved: !fresh,
   });
   return {
@@ -29,6 +30,7 @@ async function buildQueue(fresh) {
     fallbackFrom,
     cachedReviewAt,
     reusedReviewAt,
+    askedCount,
     sourceErrors: errors,
     rows,
   };
@@ -77,6 +79,37 @@ app.post('/api/command', async (req, res, next) => {
       // Every model was busy: the browser falls back to a plain search.
       return res.status(503).json({ error: `Gemini is busy (${err.failures.join('; ')})` });
     }
+    next(err);
+  }
+});
+
+// Carrying out approved rows: first a plan with the server's own amounts, then, once the
+// owner confirms it, exactly that plan. Reorders are paid through PayPal Checkout.
+app.post('/api/execute/plan', async (req, res, next) => {
+  try {
+    res.json(await preparePlan(req.body?.actions));
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/execute', async (req, res, next) => {
+  try {
+    const result = await executePlan(req.body?.planId);
+    // PayPal has changed, so the next queue load rebuilds (reusing the review where it can).
+    cachedQueue = null;
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/orders/:id/capture', async (req, res, next) => {
+  try {
+    const result = await captureReorder(req.params.id);
+    cachedQueue = null;
+    res.json(result);
+  } catch (err) {
     next(err);
   }
 });
