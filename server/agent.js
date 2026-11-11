@@ -155,40 +155,40 @@ async function saveLastReview(items, byId, model) {
 // Reviews every item in one Gemini call (cheaper and kinder to rate limits than one
 // call per item), trying each model in turn. If all are busy, the last good review
 // covers unchanged items and simple rules cover the rest.
-// The saved review, if it is recent and covers exactly these items, all unchanged.
-async function reusableReview(items) {
-  const saved = await loadLastReview();
-  if (!saved || Date.now() - new Date(saved.reviewedAt).getTime() > REUSE_REVIEW_MS) return null;
-  const covered = items.every((item) => saved.proposals[item.id]?.fingerprint === fingerprint(item));
-  return covered && items.length === Object.keys(saved.proposals).length ? saved : null;
-}
-
+// Reuses the saved review for items that haven't changed, and only asks Gemini about
+// the rest (new items, or ones whose evidence moved, like a reminder just sent). On a
+// plain page load with nothing changed, Gemini isn't called at all.
 export async function proposeActions(items, { reuseSaved = false } = {}) {
   let failures = [];
   let byId = null;
   let model = null;
 
-  const saved = reuseSaved ? await reusableReview(items) : null;
-  if (saved) {
+  const saved = await loadLastReview();
+  const recent = saved && Date.now() - new Date(saved.reviewedAt).getTime() <= REUSE_REVIEW_MS;
+  const unchanged = (item) => saved?.proposals?.[item.id]?.fingerprint === fingerprint(item);
+  const reusable = reuseSaved && recent ? items.filter(unchanged) : [];
+  const toAsk = items.filter((item) => !reusable.includes(item));
+
+  if (toAsk.length === 0) {
     return {
       rows: items.map((item) => finalize(item, saved.proposals[item.id].proposal, 'gemini')),
-      model: saved.model,
+      model: saved?.model ?? null,
       fallbackFrom: null,
       aiError: null,
       cachedReviewAt: null,
-      reusedReviewAt: saved.reviewedAt,
+      reusedReviewAt: saved?.reviewedAt ?? null,
+      askedCount: 0,
     };
   }
 
-  if (items.length > 0) {
-    try {
-      const result = await askGemini(items);
-      byId = new Map(result.proposals.map((proposal) => [proposal.itemId, proposal]));
-      model = result.model;
-      failures = result.failures;
-    } catch (err) {
-      failures = err.failures ?? [err.message];
-    }
+  try {
+    const result = await askGemini(toAsk);
+    byId = new Map(result.proposals.map((proposal) => [proposal.itemId, proposal]));
+    for (const item of reusable) byId.set(item.id, saved.proposals[item.id].proposal);
+    model = result.model;
+    failures = result.failures;
+  } catch (err) {
+    failures = err.failures ?? [err.message];
   }
 
   let cachedReviewAt = null;
@@ -219,5 +219,7 @@ export async function proposeActions(items, { reuseSaved = false } = {}) {
     aiError: byId ? null : failures.join('; ') || null,
     cachedReviewAt,
     reusedReviewAt: null,
+    // How many items Gemini looked at this time (the rest reused the saved review).
+    askedCount: byId ? toAsk.length : 0,
   };
 }
