@@ -1,0 +1,14 @@
+# Markdown files stay local, except the README judges need
+*.md
+!README.md
+
+# Secrets: never commit real keys
+.env
+!.env.example
+
+# Generated folders
+node_modules/
+dist/
+
+# macOS
+.DS_Store
