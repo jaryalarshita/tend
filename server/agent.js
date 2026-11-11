@@ -3,22 +3,18 @@
 // the catalog. The one exception is a partial refund or dispute offer, which Gemini may
 // size, but which is capped at what PayPal says was paid and shown to the owner first.
 import { readFile, writeFile } from 'node:fs/promises';
-import { GoogleGenAI } from '@google/genai';
 import { ACTIONS, priceAction } from '../shared/actions.js';
+import { generateJson } from './gemini.js';
 
-// Tried in order until one answers. Gemini models hit "high demand" (503) spikes, so a
-// busy model hands over to the next instead of failing the queue. 2.5 Flash is a
-// different family, in case the whole 3.x line is busy. gemini-3.8-flash is listed but
-// timed out on every call (Nov 2026), so it is left out. GEMINI_MODEL, if set, goes first.
-const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
-// A full review normally takes 10-40 s. Past this, the model is treated as busy.
-const REQUEST_TIMEOUT_MS = 50_000;
+// A full review normally takes 10-40 s. Past this, a model is treated as busy.
+const PER_MODEL_MS = 50_000;
 // The whole review, across every model tried, never takes longer than this.
 const TOTAL_BUDGET_MS = 90_000;
-// Below this, there isn't time for another model to finish, so stop trying.
-const MIN_ATTEMPT_MS = 10_000;
 // If every model is busy, Gemini's last good review is reused for items that haven't changed.
 const LAST_REVIEW_FILE = new URL('./data/last-review.json', import.meta.url);
+// A saved review this recent is reused on page load when no item has changed, so restarts
+// and reloads don't spend Gemini credits. "Ask the AI again" always asks afresh.
+const REUSE_REVIEW_MS = 6 * 60 * 60 * 1000;
 
 const SHOP_POLICY = `You are Tend, the back-office assistant for Little Lantern Gifts, a small holiday gift shop that sells on PayPal.
 For each item, propose exactly one action. The owner approves or rejects every proposal before anything happens, so be decisive and explain why in one or two plain sentences.
@@ -61,18 +57,6 @@ const RESPONSE_SCHEMA = {
     },
   },
   required: ['proposals'],
-};
-
-let client = null;
-const getClient = () => {
-  client ??= new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    // v1beta is needed for JSON output on 2.5 Flash. No SDK retries: a busy model
-    // is skipped for the next one, which is faster than retrying the same one.
-    apiVersion: 'v1beta',
-    httpOptions: { timeout: REQUEST_TIMEOUT_MS, retryOptions: { attempts: 1 } },
-  });
-  return client;
 };
 
 // Simple, predictable proposals used when Gemini is unavailable or skips an item,
@@ -123,39 +107,19 @@ export function finalize(item, proposal, source) {
   };
 }
 
-async function askGemini(items, model, timeoutMs) {
-  const response = await getClient().models.generateContent({
-    model,
+async function askGemini(items) {
+  const { data, model, failures } = await generateJson({
+    systemInstruction: SHOP_POLICY,
     contents: JSON.stringify({
       today: new Date().toISOString().slice(0, 10),
       allowedActions: ACTIONS,
       items: items.map(({ id, type, customer, amount, currency, evidence }) => ({ id, type, customer, amount, currency, evidence })),
     }),
-    config: {
-      systemInstruction: SHOP_POLICY,
-      responseMimeType: 'application/json',
-      responseJsonSchema: RESPONSE_SCHEMA,
-      temperature: 0.2,
-      httpOptions: { timeout: timeoutMs },
-      // Gemini 3 takes a thinking level; 2.5 takes a token budget.
-      thinkingConfig: model.startsWith('gemini-2') ? { thinkingBudget: 1024 } : { thinkingLevel: 'LOW' },
-    },
+    schema: RESPONSE_SCHEMA,
+    perModelMs: PER_MODEL_MS,
+    totalMs: TOTAL_BUDGET_MS,
   });
-  return JSON.parse(response.text).proposals ?? [];
-}
-
-function describeFailure(err) {
-  if (err.status === 503) return 'busy (high demand)';
-  if (err.status === 429) return 'rate limit reached';
-  if (err.status === 504 || err.name === 'AbortError' || /timed? ?out|deadline/i.test(err.message)) return 'timed out';
-  // The SDK puts Google's JSON error body in the message; keep just the readable part.
-  let message = String(err.message ?? err);
-  try {
-    message = JSON.parse(message).error?.message ?? message;
-  } catch {
-    // Not JSON, keep as is.
-  }
-  return message.slice(0, 120);
+  return { proposals: data.proposals ?? [], model, failures };
 }
 
 // Proposals are only reused while the item they were made for is unchanged.
@@ -191,31 +155,39 @@ async function saveLastReview(items, byId, model) {
 // Reviews every item in one Gemini call (cheaper and kinder to rate limits than one
 // call per item), trying each model in turn. If all are busy, the last good review
 // covers unchanged items and simple rules cover the rest.
-export async function proposeActions(items) {
-  const models = [...new Set([process.env.GEMINI_MODEL, ...FALLBACK_MODELS].filter(Boolean))];
-  const failures = [];
+// The saved review, if it is recent and covers exactly these items, all unchanged.
+async function reusableReview(items) {
+  const saved = await loadLastReview();
+  if (!saved || Date.now() - new Date(saved.reviewedAt).getTime() > REUSE_REVIEW_MS) return null;
+  const covered = items.every((item) => saved.proposals[item.id]?.fingerprint === fingerprint(item));
+  return covered && items.length === Object.keys(saved.proposals).length ? saved : null;
+}
+
+export async function proposeActions(items, { reuseSaved = false } = {}) {
+  let failures = [];
   let byId = null;
   let model = null;
 
-  if (!process.env.GEMINI_API_KEY) {
-    failures.push('GEMINI_API_KEY is not set');
-  } else if (items.length > 0) {
-    const deadline = Date.now() + TOTAL_BUDGET_MS;
-    for (const candidate of models) {
-      const timeLeft = deadline - Date.now();
-      if (timeLeft < MIN_ATTEMPT_MS) {
-        failures.push(`${candidate} skipped (out of time)`);
-        continue;
-      }
-      try {
-        const proposals = await askGemini(items, candidate, Math.min(REQUEST_TIMEOUT_MS, timeLeft));
-        byId = new Map(proposals.map((proposal) => [proposal.itemId, proposal]));
-        model = candidate;
-        break;
-      } catch (err) {
-        failures.push(`${candidate} ${describeFailure(err)}`);
-        console.warn(`Gemini ${candidate} failed: ${err.message}`);
-      }
+  const saved = reuseSaved ? await reusableReview(items) : null;
+  if (saved) {
+    return {
+      rows: items.map((item) => finalize(item, saved.proposals[item.id].proposal, 'gemini')),
+      model: saved.model,
+      fallbackFrom: null,
+      aiError: null,
+      cachedReviewAt: null,
+      reusedReviewAt: saved.reviewedAt,
+    };
+  }
+
+  if (items.length > 0) {
+    try {
+      const result = await askGemini(items);
+      byId = new Map(result.proposals.map((proposal) => [proposal.itemId, proposal]));
+      model = result.model;
+      failures = result.failures;
+    } catch (err) {
+      failures = err.failures ?? [err.message];
     }
   }
 
@@ -246,5 +218,6 @@ export async function proposeActions(items) {
     fallbackFrom: model && failures.length ? failures : null,
     aiError: byId ? null : failures.join('; ') || null,
     cachedReviewAt,
+    reusedReviewAt: null,
   };
 }
