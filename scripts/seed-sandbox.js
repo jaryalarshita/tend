@@ -17,7 +17,14 @@ const REMINDERS_FILE = new URL('../server/data/reminders.json', import.meta.url)
 const INVOICE_PREFIX = 'TEND-';
 const CURRENCY = 'USD';
 // PayPal's sandbox test Visa. Card orders capture instantly, with no buyer login.
-const TEST_CARD = { number: '4032039317984658', expiry: '2030-12', security_code: '123' };
+// If the sandbox starts declining it (PAYER_CANNOT_PAY), generate a new test card at
+// developer.paypal.com/tools/sandbox/card-testing/ and set SEED_CARD_NUMBER
+// (and SEED_CARD_EXPIRY as YYYY-MM, SEED_CARD_CVV if it came with one) in .env.
+const TEST_CARD = {
+  number: (process.env.SEED_CARD_NUMBER || '4032039317984658').replace(/\s/g, ''),
+  expiry: process.env.SEED_CARD_EXPIRY || '2030-12',
+  security_code: process.env.SEED_CARD_CVV || '123',
+};
 const TEST_BILLING_ADDRESS = {
   address_line_1: '1 Main St',
   admin_area_2: 'San Jose',
