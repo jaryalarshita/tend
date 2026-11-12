@@ -1,98 +1,111 @@
 {
-  "reviewedAt": "2026-11-11T15:43:31.063Z",
+  "reviewedAt": "2026-11-12T10:32:34.344Z",
   "model": "gemini-3.5-flash",
   "note": "Committed snapshot of a Gemini review of the demo items. Used when no fresh review exists (e.g. a Render cold start), for items whose evidence is unchanged.",
   "proposals": {
-    "invoice:INV2-BTDS-W9FR-HRPK-RU84": {
+    "invoice:INV2-KG8D-EQLH-TGWL-Y6T8": {
       "fingerprint": "overdue_invoice|78|SENT|||||1",
       "proposal": {
-        "itemId": "invoice:INV2-BTDS-W9FR-HRPK-RU84",
+        "itemId": "invoice:INV2-KG8D-EQLH-TGWL-Y6T8",
         "action": "hold",
         "risk": "low",
-        "reason": "This customer was contacted only 1 day ago. Shop policy requires waiting at least 3 days between reminders."
+        "reason": "The customer was contacted yesterday, so policy requires holding off on further reminders for now.",
+        "customerMessage": ""
       }
     },
-    "invoice:INV2-2C9M-ACNA-AGUV-PMZN": {
+    "invoice:INV2-XGAF-9H32-R46F-YEHR": {
       "fingerprint": "overdue_invoice|1008|SENT|||||33",
       "proposal": {
-        "itemId": "invoice:INV2-2C9M-ACNA-AGUV-PMZN",
+        "itemId": "invoice:INV2-XGAF-9H32-R46F-YEHR",
         "action": "send_reminder",
         "risk": "high",
-        "reason": "This is a large invoice that is now 3 days overdue with no recent contact.",
-        "customerMessage": "Hello, this is a friendly reminder that your invoice for $1,008 is now slightly past due. We would appreciate payment at your earliest convenience."
+        "reason": "The invoice is overdue by 3 days and hasn't been contacted in 33 days. Due to the high amount, a friendly reminder should be sent.",
+        "customerMessage": "Hello Harbor View Hotel, this is a friendly reminder that your invoice TEND-2611121027-03 for $1008 is past due. Please let us know if you need any assistance with payment."
       }
     },
-    "invoice:INV2-NNYD-MF88-RW5G-T6XQ": {
+    "invoice:INV2-UGGS-XH2V-TM6T-WRWQ": {
       "fingerprint": "overdue_invoice|185.5|SENT|||||39",
       "proposal": {
-        "itemId": "invoice:INV2-NNYD-MF88-RW5G-T6XQ",
+        "itemId": "invoice:INV2-UGGS-XH2V-TM6T-WRWQ",
         "action": "send_reminder",
         "risk": "low",
-        "reason": "The invoice is 9 days overdue and the customer has not been contacted in over a month.",
-        "customerMessage": "Hello, we are following up on this invoice which is now 9 days overdue. Please let us know if you have any questions regarding payment."
+        "reason": "The invoice is 9 days overdue and hasn't been contacted in 39 days. A payment reminder is appropriate.",
+        "customerMessage": "Hello Bloom & Stem Florist, just a quick reminder that invoice TEND-2611121027-02 for $185.50 is past due. Please reach out if you have any questions!"
       }
     },
-    "invoice:INV2-KKKX-XCAF-QPNL-FCCP": {
+    "invoice:INV2-QNC9-UG39-RJTC-9CRD": {
       "fingerprint": "overdue_invoice|1240|SENT|||||51",
       "proposal": {
-        "itemId": "invoice:INV2-KKKX-XCAF-QPNL-FCCP",
+        "itemId": "invoice:INV2-QNC9-UG39-RJTC-9CRD",
         "action": "send_reminder",
         "risk": "high",
-        "reason": "This large invoice is 21 days overdue. A firmer reminder is appropriate given the delay and the amount.",
-        "customerMessage": "Hello, your invoice is now 3 weeks overdue. We kindly ask that you settle this balance immediately or contact us if there is an issue."
+        "reason": "The invoice is 21 days overdue with no contact in 51 days. A firm, polite reminder is needed for this high balance.",
+        "customerMessage": "Hello Northwind Dental, invoice TEND-2611121027-01 for $1240 is now 3 weeks overdue. Please settle this account at your earliest convenience or contact us if you need to discuss payment details."
       }
     },
-    "refund:8FS921997S201135Y": {
+    "refund:97174374JJ4648114": {
       "fingerprint": "refund_request|48||COMPLETED||||",
       "proposal": {
-        "itemId": "refund:8FS921997S201135Y",
+        "itemId": "refund:97174374JJ4648114",
         "action": "partial_refund",
         "refundAmount": 24,
         "risk": "low",
-        "reason": "The customer reported one of two items arrived smashed. A partial refund for the damaged half is appropriate.",
-        "customerMessage": "We are so sorry one of your candles arrived broken. We have issued a partial refund for the damaged item."
+        "reason": "One of two candles arrived broken within 30 days of delivery. Providing a partial refund covering the broken item.",
+        "customerMessage": "Hi Priya, we're so sorry to hear one of your candles arrived broken! We have issued a partial refund of $24 for the damaged item."
       }
     },
-    "refund:06U15834HY517534M": {
+    "refund:3GX48172TV223544F": {
       "fingerprint": "refund_request|32||COMPLETED||||",
       "proposal": {
-        "itemId": "refund:06U15834HY517534M",
+        "itemId": "refund:3GX48172TV223544F",
         "action": "full_refund",
+        "refundAmount": null,
         "risk": "low",
-        "reason": "The item is reported as faulty and unusable within the 30-day window.",
-        "customerMessage": "We are very sorry the fairy light jar is not working. We have issued a full refund for this faulty item."
+        "reason": "The item arrived faulty and unusable within 30 days of delivery, so a full refund is warranted under shop policy.",
+        "customerMessage": "Hi Tom, we are very sorry the fairy light jar is defective. We have processed a full refund for your order."
       }
     },
-    "refund:1BG5913361827215P": {
+    "refund:1WF44840H3064913C": {
       "fingerprint": "refund_request|120||COMPLETED||||",
       "proposal": {
-        "itemId": "refund:1BG5913361827215P",
+        "itemId": "refund:1WF44840H3064913C",
         "action": "decline",
+        "refundAmount": null,
         "risk": "medium",
-        "reason": "Shop policy does not allow refunds for ordering the wrong size; an exchange is offered instead.",
-        "customerMessage": "We cannot offer a refund for a change of mind or ordering the wrong size, but we would be happy to help you with an exchange for the medium hamper."
+        "reason": "Customer ordered the wrong size by mistake. Per shop policy, wrong size/mistake orders are offered an exchange rather than a cash refund.",
+        "customerMessage": "Hi Ana, per our policy we don't offer cash refunds for wrong size selections, but we would be happy to assist you with an exchange for the medium hamper!"
       }
     },
-    "refund:0G614230DD829420X": {
+    "refund:2TU030453V812661U": {
       "fingerprint": "refund_request|210||COMPLETED||||",
       "proposal": {
-        "itemId": "refund:0G614230DD829420X",
+        "itemId": "refund:2TU030453V812661U",
         "action": "decline",
+        "refundAmount": null,
         "risk": "medium",
-        "reason": "Items that have already been used or found cheaper elsewhere are not eligible for a refund per shop policy.",
-        "customerMessage": "We cannot offer a refund as the item has already been used and our policy does not cover price matching."
+        "reason": "Refunds are declined because the items have already been used and 'found cheaper elsewhere' is not eligible for refund.",
+        "customerMessage": "Hi Jake, unfortunately we cannot accept returns or refunds for items that have already been used or based on price matching."
       }
     },
     "dispute:PP-R-MXX-10198953": {
-      "fingerprint": "dispute|65|WAITING_FOR_SELLER_RESPONSE||INQUIRY||1|",
+      "fingerprint": "dispute|65|WAITING_FOR_BUYER_RESPONSE||INQUIRY||2|",
       "proposal": {
         "itemId": "dispute:PP-R-MXX-10198953",
         "action": "send_message",
         "refundAmount": null,
-        "quantity": null,
         "risk": "medium",
-        "reason": "The dispute is in the INQUIRY stage. Per policy, we reply to the buyer first to provide assistance and address the missing delivery before escalating or settling.",
-        "customerMessage": "Hello John, thank you for reaching out. We are looking into the status of your holiday wreath shipment with the carrier and will follow up shortly with an update."
+        "reason": "The dispute is in the INQUIRY stage awaiting buyer response after our last reply, so we should communicate via messaging.",
+        "customerMessage": "Hi John, we are actively checking with the carrier regarding the delayed tracking for your holiday wreath and will update you as soon as we have news."
+      }
+    },
+    "reorder:gb-02": {
+      "fingerprint": "low_stock|26||||1||",
+      "proposal": {
+        "itemId": "reorder:gb-02",
+        "action": "reorder",
+        "quantity": 5,
+        "risk": "low",
+        "reason": "Stock is well below the reorder point. Ordering 5 packs to cover 4 weeks of use plus the reorder point."
       }
     },
     "reorder:cn-01": {
@@ -123,16 +136,6 @@
         "quantity": 3,
         "risk": "low",
         "reason": "Stock is below the reorder point. Ordering 3 packs to cover 4 weeks of use plus the reorder point."
-      }
-    },
-    "reorder:gb-02": {
-      "fingerprint": "low_stock|26||||1||",
-      "proposal": {
-        "itemId": "reorder:gb-02",
-        "action": "reorder",
-        "quantity": 5,
-        "risk": "low",
-        "reason": "Stock is well below the reorder point. Ordering 5 packs to cover 4 weeks of use plus the reorder point."
       }
     }
   }
