@@ -76,6 +76,8 @@ export function applyOperations(operations, ctx) {
   const byId = new Map(rows.map((row) => [row.id, row]));
   const changed = new Set();
   const log = [];
+  // Several sorts in one command combine ("risk, then amount") instead of replacing each other.
+  const sorts = [];
 
   for (const operation of operations) {
     switch (operation.op) {
@@ -96,7 +98,8 @@ export function applyOperations(operations, ctx) {
         log.push(`Showing ${plural(operation.rowIds.length, 'chosen row')}`);
         break;
       case 'sort':
-        api.applyColumnState({ state: [{ colId: operation.column, sort: operation.direction }], defaultState: { sort: null } });
+        sorts.push({ colId: operation.column, sort: operation.direction, sortIndex: sorts.length });
+        api.applyColumnState({ state: sorts, defaultState: { sort: null } });
         log.push(`Sorted by ${COLUMN_NAMES[operation.column]} ${operation.direction === 'asc' ? '↑' : '↓'}`);
         break;
       case 'search':
@@ -108,6 +111,7 @@ export function applyOperations(operations, ctx) {
         let skipped = 0;
         for (const id of operation.rowIds) {
           const row = byId.get(id);
+          if (!row) continue; // the queue was refreshed while the command ran
           // Rows already carried out in PayPal can't be re-decided.
           if (row.result?.status === 'done' || (operation.decision === 'approved' && !canApprove(row))) {
             skipped++;
@@ -122,11 +126,17 @@ export function applyOperations(operations, ctx) {
         break;
       }
       case 'edit': {
+        const numeric = operation.field === 'proposedAmount' || operation.field === 'quantity';
+        if (numeric && (String(operation.value).trim() === '' || !Number.isFinite(Number(operation.value)))) {
+          log.push(`Ignored ${operation.field === 'quantity' ? 'a quantity' : 'an amount'} that isn't a number (“${String(operation.value).slice(0, 30)}”)`);
+          break;
+        }
         let done = 0;
         let skipped = 0;
         const results = [];
         for (const id of operation.rowIds) {
           const row = byId.get(id);
+          if (!row) continue;
           let value = operation.value;
           if (operation.field === 'action' && !ACTIONS[row.type].includes(value)) {
             skipped++;

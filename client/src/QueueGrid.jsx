@@ -4,6 +4,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { ACTION_LABELS, ACTIONS, AMOUNT_EDITABLE } from '../../shared/actions.js';
 import { evidenceSummary, money } from './format.js';
 
+const RISK_RANK = { low: 0, medium: 1, high: 2 };
+
 // AG Grid Community, registered once. Every feature used here is in the free edition.
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -218,7 +220,14 @@ const columnDefs = [
     headerName: 'Qty ✎',
     headerTooltip: 'Editable for reorders. The price always comes from the catalog.',
   },
-  { field: 'risk', width: 96, cellRenderer: RiskCell, filter: 'agTextColumnFilter' },
+  {
+    field: 'risk',
+    width: 96,
+    cellRenderer: RiskCell,
+    filter: 'agTextColumnFilter',
+    // Sort by how risky, not alphabetically (which would put "medium" above "high").
+    comparator: (a, b) => (RISK_RANK[a] ?? -1) - (RISK_RANK[b] ?? -1),
+  },
   {
     field: 'reason',
     headerName: 'Why (AI reasoning)',
