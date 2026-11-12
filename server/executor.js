@@ -57,9 +57,13 @@ function describe(step) {
 }
 
 // requests: [{ id, action, amount, quantity, message }] for the rows the owner approved.
-export async function preparePlan(requests) {
+export async function preparePlan(input) {
   forget(Date.now() - PLAN_TTL_MS);
-  if (!Array.isArray(requests) || requests.length === 0) throw Object.assign(new Error('Nothing approved to carry out'), { status: 400 });
+  // Only well-formed { id, action } entries; anything else is ignored.
+  const requests = Array.isArray(input)
+    ? input.filter((r) => r && typeof r === 'object' && typeof r.id === 'string' && typeof r.action === 'string')
+    : [];
+  if (requests.length === 0) throw Object.assign(new Error('Nothing approved to carry out'), { status: 400 });
   if (requests.length > MAX_STEPS) throw Object.assign(new Error(`At most ${MAX_STEPS} rows at a time`), { status: 400 });
 
   logStep('action', `Re-checking ${requests.length} approved row${requests.length === 1 ? '' : 's'} against PayPal`, 'start');

@@ -140,18 +140,21 @@ export function sanitize(operations, rowIds) {
 
 // rows: the browser's compact view of the queue, one short line of evidence each.
 export async function interpretCommand(text, rows) {
-  const compact = rows.slice(0, MAX_ROWS).map((row) => ({
-    id: clip(row.id, 80),
-    type: clip(row.typeLabel, 30),
-    customer: clip(row.customer, 80),
-    atStake: row.atStake ?? null,
-    evidence: clip(row.evidence, 160),
-    action: clip(row.action, 30),
-    proposedAmount: row.proposedAmount ?? null,
-    quantity: row.quantity ?? null,
-    risk: clip(row.risk, 10),
-    decision: clip(row.decision, 10),
-  }));
+  const compact = rows
+    .filter((row) => row && typeof row === 'object' && typeof row.id === 'string')
+    .slice(0, MAX_ROWS)
+    .map((row) => ({
+      id: clip(row.id, 80),
+      type: clip(row.typeLabel, 30),
+      customer: clip(row.customer, 80),
+      atStake: row.atStake ?? null,
+      evidence: clip(row.evidence, 160),
+      action: clip(row.action, 30),
+      proposedAmount: row.proposedAmount ?? null,
+      quantity: row.quantity ?? null,
+      risk: clip(row.risk, 10),
+      decision: clip(row.decision, 10),
+    }));
 
   step('command', `Command: “${clip(text, 120)}”`, 'start');
   const { data, model } = await generateJson({
